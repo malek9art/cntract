@@ -1,0 +1,96 @@
+/* ==========================================================================
+   Abu Hudhayfah Exchange & Transfers - Print & PDF Media Stylesheet
+   ========================================================================== */
+
+@page {
+  size: A4 portrait;
+  margin: 12mm 15mm 15mm 15mm;
+}
+
+@media print {
+  html, body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Hide Application Chrome UI */
+  .app-sidebar,
+  .app-topbar,
+  .view-header,
+  .filter-toolbar,
+  .card-footer,
+  .table-actions,
+  .btn,
+  .modal-header,
+  .modal-footer,
+  .toast-container,
+  #app-sidebar,
+  .app-content-body > :not(#pdf-preview-modal) {
+    display: none !important;
+  }
+
+  /* Show PDF Preview Container Full Size */
+  #pdf-preview-modal {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .modal-dialog {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .printable-a4-document {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .contract-clause-item,
+  .doc-signatures-section,
+  .voucher-declaration-box,
+  .doc-section-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .doc-data-table {
+    page-break-inside: auto;
+  }
+
+  .doc-data-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .doc-data-table th {
+    background-color: #F1F5F9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .official-stamp-img {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
