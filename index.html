@@ -7,6 +7,8 @@
   
   <!-- Favicon / Brand Icon -->
   <link rel="icon" type="image/svg+xml" href="assets/images/logo.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A1E3F">
   
   <!-- Google Fonts: IBM Plex Sans Arabic -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -129,6 +131,11 @@
         </div>
 
         <div class="topbar-left-section">
+          <!-- Live Offline/Online Status Badge -->
+          <span id="topbar-online-status-badge" class="badge badge-emerald text-xs">
+            <i class="fa-solid fa-wifi text-xs ml-1"></i> متصل بالشبكة
+          </span>
+
           <!-- Live Clock -->
           <div class="topbar-live-clock" id="topbar-live-clock">
             <span class="clock-time font-mono font-bold">--:--:--</span>
@@ -1970,6 +1977,9 @@
 
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
+
+  <!-- Dedicated Isolated Print Frame for 100% Offline & Pixel-Perfect Printing -->
+  <iframe id="isolated-print-frame" style="display:none; position:fixed; right:-9999px; bottom:-9999px; width:0; height:0; border:none;" title="Print Driver"></iframe>
 
   <!-- Main ES Module Entry Point -->
   <script type="module" src="assets/js/app.js"></script>

@@ -1,5 +1,6 @@
 /**
  * Abu Hudhayfah Exchange & Transfers - Master Application Orchestrator & Router
+ * Enhanced with Service Worker PWA, Offline-First state management, and high-precision printing.
  */
 
 import { db } from './core/db.js';
@@ -38,6 +39,8 @@ class App {
       this.setupQuickActions();
       this.startLiveClock();
       this.setupTabControllers();
+      this.setupOfflineMonitor();
+      this.registerServiceWorker();
 
       // Navigate to initial hash or dashboard
       const hash = window.location.hash.replace('#', '') || 'dashboard';
@@ -383,6 +386,39 @@ class App {
 
     updateClock();
     setInterval(updateClock, 1000);
+  }
+
+  setupOfflineMonitor() {
+    const badge = document.getElementById('topbar-online-status-badge');
+    if (!badge) return;
+
+    const updateStatus = () => {
+      const isOnline = navigator.onLine;
+      if (isOnline) {
+        badge.className = 'badge badge-emerald text-xs';
+        badge.innerHTML = `<i class="fa-solid fa-wifi text-xs ml-1"></i> متصل بالشبكة`;
+      } else {
+        badge.className = 'badge badge-slate text-xs';
+        badge.innerHTML = `<i class="fa-solid fa-plane text-xs ml-1"></i> يعمل محلياً (Offline)`;
+        showToast('أنت تعمل الآن في وضع عدم الاتصال (Offline). جميع البيانات والوظائف تعمل محلياً.', 'info', 4000);
+      }
+    };
+
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    updateStatus();
+  }
+
+  registerServiceWorker() {
+    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      navigator.serviceWorker.register('./sw.js')
+        .then((reg) => {
+          console.log('[PWA] Service Worker registered successfully:', reg.scope);
+        })
+        .catch((err) => {
+          console.log('[PWA] Service Worker registration skipped or failed:', err);
+        });
+    }
   }
 
   setupTabControllers() {

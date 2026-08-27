@@ -1,0 +1,19 @@
+{
+  "name": "أبو حذيفة للصرافة والتحويلات - إدارة العقود والعهد",
+  "short_name": "أبو حذيفة",
+  "description": "نظام إدارة عقود الموظفين والعهد والمستندات لشركة أبو حذيفة للصرافة والتحويلات - يعمل بدون إنترنت Offline-First",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0A192F",
+  "theme_color": "#0A1E3F",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "assets/images/logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

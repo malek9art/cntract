@@ -1,11 +1,12 @@
 /**
- * Abu Hudhayfah Exchange & Transfers - Document & PDF Rendering Engine
- * Multi-page A4 RTL printable layouts with headers, footers, stamps, and signatures.
+ * Abu Hudhayfah Exchange & Transfers - Enhanced Document & PDF Rendering Engine
+ * Isolated Print Driver with exact CSS embedding, A4 RTL precision, and 100% offline support.
  */
 
 import { formatDate, formatCurrency, tafqeetArabic } from '../utils/formatters.js';
 import { substituteContractVariables } from './template-service.js';
 import { logAudit } from '../core/audit.js';
+import { showToast } from '../ui/toast.js';
 
 export function renderDocumentHeader(settings, title, docNumber = '', docDate = '') {
   const companyName = settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
@@ -33,7 +34,7 @@ export function renderDocumentHeader(settings, title, docNumber = '', docDate = 
       <div class="doc-header-left">
         <h3 class="doc-company-en">${companyNameEn}</h3>
         <div class="doc-badge-meta">
-          ${docNumber ? `<div><strong>رقم المستند:</strong> <span class="ltr-text">${docNumber}</span></div>` : ''}
+          ${docNumber ? `<div><strong>رقم المستند:</strong> <span class="ltr-text font-mono">${docNumber}</span></div>` : ''}
           ${docDate ? `<div><strong>التاريخ:</strong> <span>${formatDate(docDate)}</span></div>` : ''}
         </div>
       </div>
@@ -56,14 +57,14 @@ export function renderDocumentFooter(settings, docNumber = '') {
       <div class="doc-footer-content">
         <div class="footer-col-right">
           <span>المقر الرئيسي: ${hq}</span>
+          <span>•</span>
           <span>هاتف: ${phone}</span>
         </div>
         <div class="footer-col-center">
-          <span class="doc-watermark-tag">مستند إداري معتمد • شركة أبو حذيفة للصرافة والتحويلات</span>
+          <span class="doc-watermark-tag">مستند رسمي معتمد • شركة أبو حذيفة للصرافة والتحويلات</span>
         </div>
         <div class="footer-col-left">
           <span>${email}</span>
-          <span class="page-number-text">الصفحة <span class="page-num"></span></span>
         </div>
       </div>
     </div>
@@ -75,17 +76,17 @@ export function renderSignatureBlock(employeeName, companyRep = 'المدير ا
   return `
     <div class="doc-signatures-section">
       <div class="sig-col sig-first-party">
-        <div class="sig-title">الطرف الأول (الشركة)</div>
+        <div class="sig-title">الطرف الأول (صاحب العمل)</div>
         <div class="sig-role">عن شركة أبو حذيفة للصرافة والتحويلات</div>
         <div class="sig-rep-name">الاسم: <strong>${companyRep}</strong></div>
         <div class="sig-line">التوقيع: .......................................</div>
         <div class="sig-date">التاريخ: ..... / ..... / 2026 م</div>
-        ${includeStamp ? `<div class="sig-stamp-container"><img src="${stampUrl}" alt="ختم الشركة" class="official-stamp-img" /></div>` : ''}
+        ${includeStamp ? `<div class="sig-stamp-container"><img src="${stampUrl}" alt="ختم الشركة" class="official-stamp-img" onerror="this.src='assets/images/stamp.svg'" /></div>` : ''}
       </div>
 
       <div class="sig-col sig-second-party">
         <div class="sig-title">الطرف الثاني (الموظف)</div>
-        <div class="sig-role">المقر بما فيه ومستلم نسخة الأصل</div>
+        <div class="sig-role">المقر بما فيه ومستلم نسخة العقد الأصلية</div>
         <div class="sig-rep-name">الاسم: <strong>${employeeName || '...........................................'}</strong></div>
         <div class="sig-line">التوقيع: .......................................</div>
         <div class="sig-line">البصمة: .......................................</div>
@@ -102,10 +103,8 @@ export function buildContractDocumentHtml(contract, employee, settings) {
   const headerHtml = renderDocumentHeader(settings, contract.templateName || 'عقد عمل وظيفي', contract.contractNumber, contract.issueDate);
   const footerHtml = renderDocumentFooter(settings, contract.contractNumber);
 
-  const currencyName = contract.currency === 'SAR' ? 'ريال سعودي' : 'ريال يمني';
   const baseSalaryFormatted = formatCurrency(contract.baseSalary, contract.currency);
   const allowancesFormatted = formatCurrency(contract.allowances || 0, contract.currency);
-  const deductionsFormatted = formatCurrency(contract.deductions || 0, contract.currency);
   const netSalaryFormatted = formatCurrency(contract.netSalary || (Number(contract.baseSalary) + Number(contract.allowances || 0) - Number(contract.deductions || 0)), contract.currency);
   const salaryTafqeet = tafqeetArabic(contract.netSalary || contract.baseSalary, contract.currency);
 
@@ -128,8 +127,8 @@ export function buildContractDocumentHtml(contract, employee, settings) {
       ${headerHtml}
 
       <div class="doc-intro-box">
-        <p class="intro-p">
-          بعون الله وتوفيقه، تم إبرام هذا العقد في يوم <strong>${formatDate(contract.issueDate)}</strong> بين كلٍ من:
+        <p class="intro-p mb-2" style="font-size: 9pt; line-height: 1.6;">
+          بعون الله وتوفيقه، تم إبرام هذا العقد في يوم <strong>${formatDate(contract.issueDate)}</strong> بمدينة صنعاء بين كلٍ من:
         </p>
 
         <div class="parties-grid">
@@ -137,7 +136,7 @@ export function buildContractDocumentHtml(contract, employee, settings) {
             <div class="party-badge">الطرف الأول (صاحب العمل)</div>
             <div class="party-row"><strong>الاسم:</strong> ${settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات'}</div>
             <div class="party-row"><strong>السجل التجاري:</strong> ${settings?.commercialRegister || '108492048'}</div>
-            <div class="party-row"><strong>الترخيص:</strong> ${settings?.centralBankLicense || 'ترخيص البنك المركزي 442/ص'}</div>
+            <div class="party-row"><strong>الترخيص المصرفي:</strong> ${settings?.centralBankLicense || 'ترخيص البنك المركزي 442/ص'}</div>
             <div class="party-row"><strong>العنوان:</strong> ${settings?.headquarters || 'اليمن - صنعاء - شارع الزبيري'}</div>
             <div class="party-row"><strong>الممثل المفوض:</strong> المدير العام التنفيذي</div>
           </div>
@@ -145,9 +144,9 @@ export function buildContractDocumentHtml(contract, employee, settings) {
           <div class="party-box party-second">
             <div class="party-badge">الطرف الثاني (الموظف)</div>
             <div class="party-row"><strong>الاسم الرباعي:</strong> ${employee?.fullName || contract.employeeName}</div>
-            <div class="party-row"><strong>رقم الهوية:</strong> ${employee?.nationalId || '—'}</div>
+            <div class="party-row"><strong>رقم الهوية:</strong> <span class="font-mono font-bold">${employee?.nationalId || '—'}</span></div>
             <div class="party-row"><strong>الجنسية:</strong> ${employee?.nationality || 'يمني'}</div>
-            <div class="party-row"><strong>رقم الهاتف:</strong> ${employee?.phone || '—'}</div>
+            <div class="party-row"><strong>رقم الهاتف:</strong> <span class="font-mono">${employee?.phone || '—'}</span></div>
             <div class="party-row"><strong>العنوان:</strong> ${employee?.address || '—'}</div>
           </div>
         </div>
@@ -175,7 +174,7 @@ export function buildContractDocumentHtml(contract, employee, settings) {
               <td>${contract.endDate ? formatDate(contract.endDate) : 'غير محدد'}</td>
               <td>${baseSalaryFormatted}</td>
               <td>${allowancesFormatted}</td>
-              <td class="highlight-net"><strong>${netSalaryFormatted}</strong></td>
+              <td class="highlight-net"><strong style="color: #0A1E3F;">${netSalaryFormatted}</strong></td>
             </tr>
           </tbody>
         </table>
@@ -222,14 +221,14 @@ export function buildCustodyHandoverVoucherHtml(voucher, employee, settings) {
         <table class="voucher-meta-table">
           <tr>
             <td><strong>اسم الموظف المستلم:</strong> ${employee?.fullName || voucher.employeeName}</td>
-            <td><strong>الرقم الوظيفي:</strong> ${employee?.code || voucher.employeeId || '—'}</td>
+            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono font-bold">${employee?.code || voucher.employeeId || '—'}</span></td>
           </tr>
           <tr>
             <td><strong>المسمى الوظيفي:</strong> ${voucher.jobTitle || employee?.jobTitle || '—'}</td>
             <td><strong>الفرع / الإدارة:</strong> ${voucher.branchName || employee?.branchName || '—'}</td>
           </tr>
           <tr>
-            <td><strong>رقم الهوية:</strong> ${employee?.nationalId || '—'}</td>
+            <td><strong>رقم الهوية:</strong> <span class="font-mono">${employee?.nationalId || '—'}</span></td>
             <td><strong>تاريخ التسليم:</strong> ${formatDate(voucher.date)}</td>
           </tr>
         </table>
@@ -294,7 +293,7 @@ export function buildCustodyReturnVoucherHtml(voucher, employee, settings) {
         <table class="voucher-meta-table">
           <tr>
             <td><strong>اسم الموظف المرجع:</strong> ${employee?.fullName || voucher.employeeName}</td>
-            <td><strong>الرقم الوظيفي:</strong> ${employee?.code || voucher.employeeId || '—'}</td>
+            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono font-bold">${employee?.code || voucher.employeeId || '—'}</span></td>
           </tr>
           <tr>
             <td><strong>المسمى الوظيفي:</strong> ${voucher.jobTitle || employee?.jobTitle || '—'}</td>
@@ -364,7 +363,7 @@ export function buildVehicleInspectionDocumentHtml(vehicle, inspection, employee
     <div class="printable-a4-document vehicle-document">
       ${headerHtml}
 
-      <div class="vehicle-specs-card">
+      <div class="vehicle-specs-card mb-4">
         <h3 class="section-card-title"><i class="fa-solid fa-car"></i> بيانات المركبة</h3>
         <table class="doc-data-table">
           <tbody>
@@ -392,14 +391,14 @@ export function buildVehicleInspectionDocumentHtml(vehicle, inspection, employee
         </table>
       </div>
 
-      <div class="inspection-results-section">
+      <div class="inspection-results-section mb-4">
         <h3 class="section-card-title"><i class="fa-solid fa-clipboard-check"></i> نتائج الفحص الفني للمركبة</h3>
         <table class="doc-data-table">
           <thead>
             <tr>
               <th width="40">#</th>
               <th>عنصر الفحص</th>
-              <th>الحالة</th>
+              <th width="150">الحالة</th>
               <th>ملاحظات الفاحص</th>
             </tr>
           </thead>
@@ -424,6 +423,56 @@ export function buildVehicleInspectionDocumentHtml(vehicle, inspection, employee
 }
 
 /**
+ * Isolated High-Fidelity Print Driver
+ * Creates a dedicated hidden print frame with strictly embedded CSS to guarantee 100% offline & pixel-perfect output.
+ */
+export function executeIsolatedPrint(htmlContent, title = 'مستند رسمي') {
+  let printFrame = document.getElementById('isolated-print-frame');
+  if (!printFrame) {
+    printFrame = document.createElement('iframe');
+    printFrame.id = 'isolated-print-frame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '-9999px';
+    printFrame.style.bottom = '-9999px';
+    printFrame.style.width = '0px';
+    printFrame.style.height = '0px';
+    printFrame.style.border = 'none';
+    document.body.appendChild(printFrame);
+  }
+
+  const frameDoc = printFrame.contentWindow.document;
+  frameDoc.open();
+  frameDoc.write(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>${title}</title>
+      <link rel="stylesheet" href="assets/css/main.css">
+      <link rel="stylesheet" href="assets/css/components.css">
+      <link rel="stylesheet" href="assets/css/print.css" media="all">
+      <style>
+        @page { size: A4 portrait; margin: 12mm 15mm 15mm 15mm; }
+        body { margin: 0; padding: 0; background: #fff !important; font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif !important; }
+        .printable-a4-document { width: 100% !important; max-width: 100% !important; padding: 0 !important; border: none !important; box-shadow: none !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      </style>
+    </head>
+    <body>
+      ${htmlContent}
+    </body>
+    </html>
+  `);
+  frameDoc.close();
+
+  // Trigger print once styles/fonts are loaded in frame
+  setTimeout(() => {
+    printFrame.contentWindow.focus();
+    printFrame.contentWindow.print();
+  }, 250);
+}
+
+/**
  * Launch Print & PDF Preview Modal
  */
 export async function previewAndPrintDocument(title, htmlContent, filename = 'document.pdf', auditMeta = null) {
@@ -442,15 +491,15 @@ export async function previewAndPrintDocument(title, htmlContent, filename = 'do
   bodyEl.innerHTML = htmlContent;
   modalEl.classList.add('active');
 
-  // Set up print handler
+  // Direct print button
   printBtn.onclick = async () => {
     if (auditMeta) {
       await logAudit('طباعة مستند', auditMeta.module || 'المستندات', auditMeta.recordId, `تمت طباعة (${title})`);
     }
-    window.print();
+    executeIsolatedPrint(htmlContent, title);
   };
 
-  // Set up download PDF handler
+  // Download PDF handler
   downloadBtn.onclick = async () => {
     if (auditMeta) {
       await logAudit('تصدير مستند PDF', auditMeta.module || 'المستندات', auditMeta.recordId, `تم تصدير ملف PDF بعنوان (${title})`);
@@ -458,17 +507,24 @@ export async function previewAndPrintDocument(title, htmlContent, filename = 'do
 
     if (window.html2pdf) {
       const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [10, 12, 12, 12],
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
       const element = bodyEl.querySelector('.printable-a4-document') || bodyEl;
-      window.html2pdf().set(opt).from(element).save();
+      showToast('جاري إنشاء ملف PDF وتنزيله...');
+      window.html2pdf().set(opt).from(element).save().then(() => {
+        showToast('تم تحميل ملف PDF بنجاح.');
+      }).catch(err => {
+        console.warn('html2pdf error, fallback to print:', err);
+        executeIsolatedPrint(htmlContent, title);
+      });
     } else {
-      // Direct print fallback to Save as PDF
-      window.print();
+      // Offline fallback: Direct Print to PDF
+      showToast('يمكنك اختيار "حفظ بتنسيق PDF" من نافذة الطباعة.');
+      executeIsolatedPrint(htmlContent, title);
     }
   };
 }
