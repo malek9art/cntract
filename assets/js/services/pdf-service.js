@@ -1,6 +1,6 @@
 /**
  * Abu Hudhayfah Exchange & Transfers - Enhanced Document & PDF Rendering Engine
- * Isolated Print Driver with exact CSS embedding, A4 RTL precision, and 100% offline support.
+ * Isolated Print Driver with exact CSS embedding, A4 RTL precision, customizable First Party Name, and 100% offline support.
  */
 
 import { formatDate, formatCurrency, tafqeetArabic } from '../utils/formatters.js';
@@ -9,7 +9,7 @@ import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 
 export function renderDocumentHeader(settings, title, docNumber = '', docDate = '') {
-  const companyName = settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
+  const companyName = settings?.firstPartyName || settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
   const companyNameEn = settings?.companyNameEn || 'Abu Hudhayfah Exchange & Transfers Co.';
   const cr = settings?.commercialRegister || '108492048';
   const license = settings?.centralBankLicense || 'ترخيص البنك المركزي رقم 442/ص';
@@ -50,6 +50,7 @@ export function renderDocumentFooter(settings, docNumber = '') {
   const hq = settings?.headquarters || 'صنعاء - شارع الزبيري';
   const phone = settings?.phone || '+967 1 234567';
   const email = settings?.email || 'hr@abuhudhayfah-exchange.com';
+  const companyName = settings?.firstPartyName || settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
 
   return `
     <div class="print-doc-footer">
@@ -61,7 +62,7 @@ export function renderDocumentFooter(settings, docNumber = '') {
           <span>هاتف: ${phone}</span>
         </div>
         <div class="footer-col-center">
-          <span class="doc-watermark-tag">مستند رسمي معتمد • شركة أبو حذيفة للصرافة والتحويلات</span>
+          <span class="doc-watermark-tag">مستند رسمي معتمد • ${companyName}</span>
         </div>
         <div class="footer-col-left">
           <span>${email}</span>
@@ -71,14 +72,18 @@ export function renderDocumentFooter(settings, docNumber = '') {
   `;
 }
 
-export function renderSignatureBlock(employeeName, companyRep = 'المدير التنفيذي / مدير الموارد البشرية', includeStamp = true) {
+export function renderSignatureBlock(employeeName, companyRep = null, includeStamp = true, settings = null) {
   const stampUrl = 'assets/images/stamp.svg';
+  const companyName = settings?.firstPartyName || settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
+  const repName = settings?.firstPartyRepName || companyRep || 'أ. عبدالسلام الحداد (مدير الموارد البشرية)';
+  const repRole = settings?.firstPartyRepRole || 'المدير العام التنفيذي';
+
   return `
     <div class="doc-signatures-section">
       <div class="sig-col sig-first-party">
         <div class="sig-title">الطرف الأول (صاحب العمل)</div>
-        <div class="sig-role">عن شركة أبو حذيفة للصرافة والتحويلات</div>
-        <div class="sig-rep-name">الاسم: <strong>${companyRep}</strong></div>
+        <div class="sig-role">عن: <strong>${companyName}</strong></div>
+        <div class="sig-rep-name">الاسم: <strong>${repName}</strong> (${repRole})</div>
         <div class="sig-line">التوقيع: .......................................</div>
         <div class="sig-date">التاريخ: ..... / ..... / 2026 م</div>
         ${includeStamp ? `<div class="sig-stamp-container"><img src="${stampUrl}" alt="ختم الشركة" class="official-stamp-img" onerror="this.src='assets/images/stamp.svg'" /></div>` : ''}
@@ -108,6 +113,10 @@ export function buildContractDocumentHtml(contract, employee, settings) {
   const netSalaryFormatted = formatCurrency(contract.netSalary || (Number(contract.baseSalary) + Number(contract.allowances || 0) - Number(contract.deductions || 0)), contract.currency);
   const salaryTafqeet = tafqeetArabic(contract.netSalary || contract.baseSalary, contract.currency);
 
+  const firstPartyName = settings?.firstPartyName || settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
+  const firstPartyRep = settings?.firstPartyRepName || 'المدير العام التنفيذي';
+  const firstPartyRole = settings?.firstPartyRepRole || 'المفوض بالتوقيع والاعتماد';
+
   const clausesList = contract.clauses || [];
   const renderedClauses = clausesList
     .filter(c => c.isActive !== false)
@@ -128,17 +137,17 @@ export function buildContractDocumentHtml(contract, employee, settings) {
 
       <div class="doc-intro-box">
         <p class="intro-p mb-2" style="font-size: 9pt; line-height: 1.6;">
-          بعون الله وتوفيقه، تم إبرام هذا العقد في يوم <strong>${formatDate(contract.issueDate)}</strong> بمدينة صنعاء بين كلٍ من:
+          بعون الله وتوفيقه، تم إبرام هذا العقد في يوم <strong>${formatDate(contract.issueDate)}</strong> بين كلٍ من:
         </p>
 
         <div class="parties-grid">
           <div class="party-box party-first">
             <div class="party-badge">الطرف الأول (صاحب العمل)</div>
-            <div class="party-row"><strong>الاسم:</strong> ${settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات'}</div>
+            <div class="party-row"><strong>الاسم:</strong> <span class="text-primary font-bold">${firstPartyName}</span></div>
             <div class="party-row"><strong>السجل التجاري:</strong> ${settings?.commercialRegister || '108492048'}</div>
             <div class="party-row"><strong>الترخيص المصرفي:</strong> ${settings?.centralBankLicense || 'ترخيص البنك المركزي 442/ص'}</div>
             <div class="party-row"><strong>العنوان:</strong> ${settings?.headquarters || 'اليمن - صنعاء - شارع الزبيري'}</div>
-            <div class="party-row"><strong>الممثل المفوض:</strong> المدير العام التنفيذي</div>
+            <div class="party-row"><strong>الممثل المفوض:</strong> <strong>${firstPartyRep}</strong> (${firstPartyRole})</div>
           </div>
 
           <div class="party-box party-second">
@@ -188,7 +197,7 @@ export function buildContractDocumentHtml(contract, employee, settings) {
         ${renderedClauses}
       </div>
 
-      ${renderSignatureBlock(employee?.fullName || contract.employeeName, 'أ. عبدالسلام الحداد (مدير الموارد البشرية)', true)}
+      ${renderSignatureBlock(employee?.fullName || contract.employeeName, firstPartyRep, true, settings)}
 
       ${footerHtml}
     </div>
@@ -260,7 +269,7 @@ export function buildCustodyHandoverVoucherHtml(voucher, employee, settings) {
         </p>
       </div>
 
-      ${renderSignatureBlock(employee?.fullName || voucher.employeeName, voucher.companyRepName || 'أمين المستودع المركزي', true)}
+      ${renderSignatureBlock(employee?.fullName || voucher.employeeName, voucher.companyRepName || 'أمين المستودع المركزي', true, settings)}
 
       ${footerHtml}
     </div>
@@ -332,7 +341,7 @@ export function buildCustodyReturnVoucherHtml(voucher, employee, settings) {
         </p>
       </div>
 
-      ${renderSignatureBlock(employee?.fullName || voucher.employeeName, voucher.receivedByName || 'أمين المستودع المركزي', true)}
+      ${renderSignatureBlock(employee?.fullName || voucher.employeeName, voucher.receivedByName || 'أمين المستودع المركزي', true, settings)}
 
       ${footerHtml}
     </div>
@@ -415,7 +424,7 @@ export function buildVehicleInspectionDocumentHtml(vehicle, inspection, employee
         </p>
       </div>
 
-      ${renderSignatureBlock(employee?.fullName || vehicle.assignedEmployeeName, 'مسؤول الحركة والخدمات', true)}
+      ${renderSignatureBlock(employee?.fullName || vehicle.assignedEmployeeName, 'مسؤول الحركة والخدمات', true, settings)}
 
       ${footerHtml}
     </div>
@@ -424,7 +433,6 @@ export function buildVehicleInspectionDocumentHtml(vehicle, inspection, employee
 
 /**
  * Isolated High-Fidelity Print Driver
- * Creates a dedicated hidden print frame with strictly embedded CSS to guarantee 100% offline & pixel-perfect output.
  */
 export function executeIsolatedPrint(htmlContent, title = 'مستند رسمي') {
   let printFrame = document.getElementById('isolated-print-frame');
@@ -465,7 +473,6 @@ export function executeIsolatedPrint(htmlContent, title = 'مستند رسمي')
   `);
   frameDoc.close();
 
-  // Trigger print once styles/fonts are loaded in frame
   setTimeout(() => {
     printFrame.contentWindow.focus();
     printFrame.contentWindow.print();
@@ -491,7 +498,6 @@ export async function previewAndPrintDocument(title, htmlContent, filename = 'do
   bodyEl.innerHTML = htmlContent;
   modalEl.classList.add('active');
 
-  // Direct print button
   printBtn.onclick = async () => {
     if (auditMeta) {
       await logAudit('طباعة مستند', auditMeta.module || 'المستندات', auditMeta.recordId, `تمت طباعة (${title})`);
@@ -499,7 +505,6 @@ export async function previewAndPrintDocument(title, htmlContent, filename = 'do
     executeIsolatedPrint(htmlContent, title);
   };
 
-  // Download PDF handler
   downloadBtn.onclick = async () => {
     if (auditMeta) {
       await logAudit('تصدير مستند PDF', auditMeta.module || 'المستندات', auditMeta.recordId, `تم تصدير ملف PDF بعنوان (${title})`);
@@ -522,7 +527,6 @@ export async function previewAndPrintDocument(title, htmlContent, filename = 'do
         executeIsolatedPrint(htmlContent, title);
       });
     } else {
-      // Offline fallback: Direct Print to PDF
       showToast('يمكنك اختيار "حفظ بتنسيق PDF" من نافذة الطباعة.');
       executeIsolatedPrint(htmlContent, title);
     }

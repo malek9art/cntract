@@ -1,5 +1,6 @@
 /**
  * Abu Hudhayfah Exchange & Transfers - Template Variable Substitution Engine
+ * Supports dynamic First Party Name & Representative from Settings.
  */
 
 import { formatDate, formatCurrency } from '../utils/formatters.js';
@@ -7,7 +8,10 @@ import { formatDate, formatCurrency } from '../utils/formatters.js';
 export function substituteContractVariables(text, contract, employee, settings) {
   if (!text) return '';
 
-  const companyName = settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
+  const companyName = settings?.firstPartyName || settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
+  const firstPartyRep = settings?.firstPartyRepName || 'المدير العام التنفيذي';
+  const firstPartyRole = settings?.firstPartyRepRole || 'المفوض بالتوقيع والاعتماد';
+
   const employeeName = employee?.fullName || contract?.employeeName || '—';
   const employeeId = employee?.code || contract?.employeeId || '—';
   const nationalId = employee?.nationalId || '—';
@@ -33,6 +37,9 @@ export function substituteContractVariables(text, contract, employee, settings) 
 
   const map = {
     '{{company_name}}': companyName,
+    '{{first_party_name}}': companyName,
+    '{{first_party_rep}}': firstPartyRep,
+    '{{first_party_role}}': firstPartyRole,
     '{{employee_name}}': employeeName,
     '{{employee_id}}': employeeId,
     '{{national_id}}': nationalId,

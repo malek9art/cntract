@@ -161,7 +161,7 @@ class AppDatabase {
   async ensureInitialSeed() {
     const settingsCount = await this.count('settings');
     if (settingsCount === 0) {
-      console.log('Seeding initial system data for Abu Hudhayfah Exchange...');
+      console.log('Seeding initial clean system configuration for Abu Hudhayfah Exchange...');
       await this.put('settings', INITIAL_COMPANY_SETTINGS);
       await this.bulkAdd('branches', INITIAL_BRANCHES);
       await this.bulkAdd('contract_clauses', INITIAL_DEFAULT_CLAUSES);
@@ -172,7 +172,7 @@ class AppDatabase {
       await this.bulkAdd('contracts', INITIAL_CONTRACTS);
       await this.bulkAdd('vouchers', INITIAL_VOUCHERS);
       await this.bulkAdd('audit_logs', INITIAL_AUDIT_LOGS);
-      console.log('Initial seed completed successfully.');
+      console.log('Initial clean configuration seeded successfully.');
     }
   }
 
@@ -282,7 +282,7 @@ class AppDatabase {
     const snapshot = {
       meta: {
         system: 'أبو حذيفة للصرافة والتحويلات - نظام إدارة عقود الموظفين والعهد والمستندات',
-        version: '1.0.0',
+        version: '1.0.1',
         exportedAt: new Date().toISOString(),
         dbVersion: DB_VERSION
       },
@@ -317,25 +317,7 @@ class AppDatabase {
     return true;
   }
 
-  // Reset to default sample data
-  async resetToDemo() {
-    for (const table of TABLE_NAMES) {
-      await this.clear(table);
-    }
-    await this.put('settings', { ...INITIAL_COMPANY_SETTINGS, isDemoDataLoaded: true });
-    await this.bulkAdd('branches', INITIAL_BRANCHES);
-    await this.bulkAdd('contract_clauses', INITIAL_DEFAULT_CLAUSES);
-    await this.bulkAdd('contract_templates', INITIAL_TEMPLATES);
-    await this.bulkAdd('employees', INITIAL_EMPLOYEES);
-    await this.bulkAdd('custodies', INITIAL_CUSTODIES);
-    await this.bulkAdd('vehicles', INITIAL_VEHICLES);
-    await this.bulkAdd('contracts', INITIAL_CONTRACTS);
-    await this.bulkAdd('vouchers', INITIAL_VOUCHERS);
-    await this.bulkAdd('audit_logs', INITIAL_AUDIT_LOGS);
-    return true;
-  }
-
-  // Clear all demo data leaving clean structure
+  // Wipe All Records (Clean State)
   async clearAllData() {
     const keepSettings = await this.get('settings', 'company_settings') || INITIAL_COMPANY_SETTINGS;
     keepSettings.isDemoDataLoaded = false;

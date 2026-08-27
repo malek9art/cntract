@@ -21,6 +21,14 @@ import { initDocuments, renderDocumentsList, openUploadDocumentModal } from './m
 import { initReports, renderReportView } from './modules/reports.js';
 import { initAuditLog, renderAuditLogList } from './modules/audit-log.js';
 import { initSettings } from './modules/settings.js';
+import {
+  initSupabaseClient,
+  supabaseSignIn,
+  supabaseSignOut,
+  getSupabaseCurrentUser,
+  isSupabaseConnected
+} from './services/supabase-service.js';
+import { openModal, closeModal } from './ui/modal.js';
 
 class App {
   constructor() {
@@ -167,6 +175,69 @@ class App {
     if (closePreviewBtn) {
       closePreviewBtn.addEventListener('click', () => {
         document.getElementById('pdf-preview-modal')?.classList.remove('active');
+      });
+    }
+
+    // User Badge / Auth Modal Trigger
+    const userBadge = document.querySelector('.topbar-user-badge');
+    if (userBadge) {
+      userBadge.style.cursor = 'pointer';
+      userBadge.addEventListener('click', async () => {
+        const user = await getSupabaseCurrentUser();
+        const loggedInBox = document.getElementById('auth-logged-in-box');
+        const loginForm = document.getElementById('auth-login-form');
+        const emailEl = document.getElementById('auth-current-user-email');
+
+        if (user) {
+          if (loggedInBox) loggedInBox.style.display = 'block';
+          if (loginForm) loginForm.style.display = 'none';
+          if (emailEl) emailEl.textContent = user.email;
+        } else {
+          if (loggedInBox) loggedInBox.style.display = 'none';
+          if (loginForm) loginForm.style.display = 'block';
+        }
+
+        openModal('auth-modal');
+      });
+    }
+
+    // Cloud Login Form Submit
+    const loginForm = document.getElementById('auth-login-form');
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('auth-email-input')?.value;
+        const password = document.getElementById('auth-password-input')?.value;
+
+        try {
+          const btn = document.getElementById('btn-submit-cloud-login');
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري التحقق...';
+          }
+          await supabaseSignIn(email, password);
+          showToast(`تم تسجيل الدخول بنجاح للمستخدم (${email})`);
+          closeModal('auth-modal');
+          loginForm.reset();
+        } catch (err) {
+          showToast(`فشل تسجيل الدخول: ${err.message}`, 'error');
+        } finally {
+          const btn = document.getElementById('btn-submit-cloud-login');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket ml-1"></i> تسجيل الدخول السحابي الآمن';
+          }
+        }
+      });
+    }
+
+    // Cloud Logout
+    const logoutBtn = document.getElementById('btn-supabase-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await supabaseSignOut();
+        showToast('تم تسجيل الخروج من الجلسة السحابية.');
+        closeModal('auth-modal');
       });
     }
   }

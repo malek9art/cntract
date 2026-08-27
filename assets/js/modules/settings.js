@@ -1,10 +1,19 @@
 /**
- * Abu Hudhayfah Exchange & Transfers - Settings & Backup Module
+ * Abu Hudhayfah Exchange & Transfers - Settings, First Party Configuration & Cloud Sync Module
  */
 
 import { db } from '../core/db.js';
 import { formatDate } from '../utils/formatters.js';
 import { exportDatabaseBackup, importDatabaseBackup } from '../services/backup-service.js';
+import {
+  getSupabaseConfig,
+  saveSupabaseConfig,
+  testSupabaseConnection,
+  syncLocalToSupabase,
+  syncSupabaseToLocal,
+  isSupabaseConnected
+} from '../services/supabase-service.js';
+import { DEMO_SAMPLE_DATA } from '../data/initial-data.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
@@ -14,6 +23,7 @@ let currentEditingBranchId = null;
 
 export async function initSettings() {
   await loadCompanySettingsForm();
+  await loadSupabaseSettingsForm();
   await renderBranchesList();
   setupSettingsEvents();
 }
@@ -27,6 +37,9 @@ export async function loadCompanySettingsForm() {
 
   form.elements['companyName'].value = settings.companyName || '';
   form.elements['companyNameEn'].value = settings.companyNameEn || '';
+  form.elements['firstPartyName'].value = settings.firstPartyName || settings.companyName || '';
+  form.elements['firstPartyRepName'].value = settings.firstPartyRepName || '';
+  form.elements['firstPartyRepRole'].value = settings.firstPartyRepRole || '';
   form.elements['commercialRegister'].value = settings.commercialRegister || '';
   form.elements['taxNumber'].value = settings.taxNumber || '';
   form.elements['centralBankLicense'].value = settings.centralBankLicense || '';
@@ -46,6 +59,35 @@ export async function loadCompanySettingsForm() {
   }
 }
 
+export async function loadSupabaseSettingsForm() {
+  const config = await getSupabaseConfig();
+  const form = document.getElementById('supabase-config-form');
+  if (!form) return;
+
+  form.elements['supabaseEnabled'].checked = !!config.enabled;
+  form.elements['supabaseUrl'].value = config.url || '';
+  form.elements['supabaseAnonKey'].value = config.anonKey || '';
+
+  const syncDateEl = document.getElementById('supabase-last-sync-date');
+  if (syncDateEl) {
+    syncDateEl.textContent = config.lastSyncDate ? formatDate(config.lastSyncDate) : 'لم تتم المزامنة بعد';
+  }
+
+  const badgeEl = document.getElementById('supabase-status-badge');
+  if (badgeEl) {
+    if (config.enabled && isSupabaseConnected()) {
+      badgeEl.className = 'badge badge-emerald text-xs';
+      badgeEl.innerHTML = `<i class="fa-solid fa-cloud-bolt ml-1"></i> متصل بالسحابة`;
+    } else if (config.enabled) {
+      badgeEl.className = 'badge badge-amber text-xs';
+      badgeEl.innerHTML = `<i class="fa-solid fa-cloud text-xs ml-1"></i> مهيأ (غير متصل)`;
+    } else {
+      badgeEl.className = 'badge badge-slate text-xs';
+      badgeEl.innerHTML = `<i class="fa-solid fa-hard-drive text-xs ml-1"></i> وضع محلي فقط`;
+    }
+  }
+}
+
 export async function saveCompanySettings(e) {
   e.preventDefault();
   const form = document.getElementById('company-settings-form');
@@ -55,6 +97,9 @@ export async function saveCompanySettings(e) {
     ...existing,
     companyName: form.elements['companyName'].value.trim(),
     companyNameEn: form.elements['companyNameEn'].value.trim(),
+    firstPartyName: form.elements['firstPartyName'].value.trim() || form.elements['companyName'].value.trim(),
+    firstPartyRepName: form.elements['firstPartyRepName'].value.trim(),
+    firstPartyRepRole: form.elements['firstPartyRepRole'].value.trim(),
     commercialRegister: form.elements['commercialRegister'].value.trim(),
     taxNumber: form.elements['taxNumber'].value.trim(),
     centralBankLicense: form.elements['centralBankLicense'].value.trim(),
@@ -71,8 +116,8 @@ export async function saveCompanySettings(e) {
   };
 
   await db.put('settings', updatedSettings);
-  await logAudit('تحديث الإعدادات', 'الإعدادات', 'company_settings', 'تم حفظ وتحديث بيانات الشركة والإعدادات الافتراضية للنظام');
-  showToast('تم حفظ إعدادات وبيانات الشركة بنجاح.');
+  await logAudit('تحديث الإعدادات', 'الإعدادات', 'company_settings', `تم تحديث بيانات الطرف الأول (${updatedSettings.firstPartyName}) والممثل المفوض (${updatedSettings.firstPartyRepName})`);
+  showToast('تم حفظ بيانات الطرف الأول وإعدادات الشركة بنجاح.');
 }
 
 export async function renderBranchesList() {
@@ -175,13 +220,89 @@ function setupSettingsEvents() {
   const companyForm = document.getElementById('company-settings-form');
   if (companyForm) companyForm.addEventListener('submit', saveCompanySettings);
 
-  const addBranchBtn = document.getElementById('btn-add-branch');
-  if (addBranchBtn) addBranchBtn.addEventListener('click', () => openBranchModal(null));
-
   const branchForm = document.getElementById('branch-form');
   if (branchForm) branchForm.addEventListener('submit', saveBranchFromForm);
 
-  // Backup & Restore
+  const addBranchBtn = document.getElementById('btn-add-branch');
+  if (addBranchBtn) addBranchBtn.addEventListener('click', () => openBranchModal(null));
+
+  // Supabase Form & Actions
+  const supabaseForm = document.getElementById('supabase-config-form');
+  if (supabaseForm) {
+    supabaseForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const enabled = supabaseForm.elements['supabaseEnabled'].checked;
+      const url = supabaseForm.elements['supabaseUrl'].value.trim();
+      const anonKey = supabaseForm.elements['supabaseAnonKey'].value.trim();
+
+      await saveSupabaseConfig({ enabled, url, anonKey });
+      showToast('تم حفظ إعدادات ربط Supabase السحابية.');
+      await loadSupabaseSettingsForm();
+    });
+  }
+
+  const testSupabaseBtn = document.getElementById('btn-test-supabase');
+  if (testSupabaseBtn) {
+    testSupabaseBtn.addEventListener('click', async () => {
+      const url = document.getElementById('supabase-url-input')?.value.trim();
+      const anonKey = document.getElementById('supabase-anon-key-input')?.value.trim();
+
+      if (!url || !anonKey) {
+        showToast('يرجى إدخال عنوان المشروع Project URL والمفتاح العام Anon Key أولاً.', 'warning');
+        return;
+      }
+
+      try {
+        testSupabaseBtn.disabled = true;
+        testSupabaseBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري الاتصال...';
+        const res = await testSupabaseConnection(url, anonKey);
+        showToast(res.message, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        testSupabaseBtn.disabled = false;
+        testSupabaseBtn.innerHTML = '<i class="fa-solid fa-plug ml-1"></i> اختبار الاتصال بـ Supabase';
+      }
+    });
+  }
+
+  const syncToCloudBtn = document.getElementById('btn-sync-to-supabase');
+  if (syncToCloudBtn) {
+    syncToCloudBtn.addEventListener('click', async () => {
+      try {
+        syncToCloudBtn.disabled = true;
+        syncToCloudBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري رفع البيانات...';
+        const res = await syncLocalToSupabase();
+        showToast(`تمت مزامنة ورفع ${res.count} سجل إلى قاعدة Supabase بنجاح.`);
+        await loadSupabaseSettingsForm();
+      } catch (err) {
+        showToast(`فشلت المزامنة: ${err.message}`, 'error');
+      } finally {
+        syncToCloudBtn.disabled = false;
+        syncToCloudBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up ml-1"></i> مزامنة ورفع البيانات إلى السحابة';
+      }
+    });
+  }
+
+  const pullFromCloudBtn = document.getElementById('btn-pull-from-supabase');
+  if (pullFromCloudBtn) {
+    pullFromCloudBtn.addEventListener('click', async () => {
+      try {
+        pullFromCloudBtn.disabled = true;
+        pullFromCloudBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري تنزيل البيانات...';
+        const res = await syncSupabaseToLocal();
+        showToast(`تم استيراد ${res.count} سجل من قاعدة بيانات Supabase بنجاح.`);
+        await loadSupabaseSettingsForm();
+      } catch (err) {
+        showToast(`فشل الاستيراد: ${err.message}`, 'error');
+      } finally {
+        pullFromCloudBtn.disabled = false;
+        pullFromCloudBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down ml-1"></i> تنزيل واستيراد البيانات من السحابة';
+      }
+    });
+  }
+
+  // Backup JSON
   const exportBackupBtn = document.getElementById('btn-export-backup-json');
   if (exportBackupBtn) {
     exportBackupBtn.addEventListener('click', async () => {
@@ -203,7 +324,7 @@ function setupSettingsEvents() {
 
       const confirmed = await showConfirmDialog({
         title: 'تأكيد استعادة النسخة الاحتياطية',
-        message: `هل أنت متأكد من استعادة النسخة الاحتياطية من الملف <strong>(${file.name})</strong>؟ سيتم استبدال البيانات الحالية بالبيانات المستوردة.`,
+        message: `هل أنت متأكد من استعادة النسخة الاحتياطية من الملف <strong>(${file.name})</strong>؟`,
         confirmText: 'نعم، استعادة النسخة',
         isDanger: true
       });
@@ -221,19 +342,41 @@ function setupSettingsEvents() {
     });
   }
 
-  // Reset demo data button
-  const resetDemoBtn = document.getElementById('btn-reset-demo-data');
-  if (resetDemoBtn) {
-    resetDemoBtn.addEventListener('click', async () => {
+  // Load Demo Data on Explicit Demand
+  const loadDemoBtn = document.getElementById('btn-load-sample-demo-data');
+  if (loadDemoBtn) {
+    loadDemoBtn.addEventListener('click', async () => {
       const confirmed = await showConfirmDialog({
-        title: 'تأكيد إعادة تعيين البيانات التجريبية',
-        message: 'هل تريد إعادة تعيين كافة بيانات النظام إلى البيانات الأولية المعتمدة لشركة أبو حذيفة؟',
-        confirmText: 'نعم، إعادة التعيين',
+        title: 'تحميل بيانات تجريبية',
+        message: 'هل تريد تحميل عينة بيانات تجريبية (موظفين، عهد، سيارات) لأغراض الاختبار والمعاينة؟',
+        confirmText: 'نعم، تحميل العينة',
+        isDanger: false
+      });
+      if (confirmed) {
+        if (DEMO_SAMPLE_DATA.employees) await db.bulkAdd('employees', DEMO_SAMPLE_DATA.employees);
+        if (DEMO_SAMPLE_DATA.custodies) await db.bulkAdd('custodies', DEMO_SAMPLE_DATA.custodies);
+        if (DEMO_SAMPLE_DATA.vehicles) await db.bulkAdd('vehicles', DEMO_SAMPLE_DATA.vehicles);
+        await logAudit('تحميل بيانات تجريبية', 'النظام', 'DEMO', 'تم تحميل عينة بيانات تجريبية للاختبار');
+        showToast('تم تحميل البيانات التجريبية بنجاح.');
+        setTimeout(() => window.location.reload(), 800);
+      }
+    });
+  }
+
+  // Clear All Data
+  const clearAllBtn = document.getElementById('btn-clear-all-system-data');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', async () => {
+      const confirmed = await showConfirmDialog({
+        title: 'تأكيد تفريغ كافة البيانات',
+        message: 'تحذير: سيتم مسح كافة الموظفين والعقود والعهد والسيارات والمحاضر لتبدأ بقاعدة بيانات نظيفة 100%. هل أنت متأكد؟',
+        confirmText: 'نعم، مسح وتفريغ البيانات',
         isDanger: true
       });
       if (confirmed) {
-        await db.resetToDemo();
-        showToast('تمت إعادة تعيين البيانات التجريبية بنجاح.');
+        await db.clearAllData();
+        await logAudit('تفريغ البيانات', 'النظام', 'CLEAN', 'تم تفريغ كافة البيانات لتبدأ بقاعدة نظيفة');
+        showToast('تم تفريغ كافة البيانات بنجاح.');
         setTimeout(() => window.location.reload(), 800);
       }
     });

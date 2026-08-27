@@ -25,6 +25,9 @@
   
   <!-- Client-Side PDF Generation Engine (CDN) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+  
+  <!-- Supabase Cloud Client (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -921,6 +924,25 @@
               </div>
               <div class="card-body">
                 <form id="company-settings-form">
+                  <!-- First Party Configuration Section -->
+                  <div class="p-4 bg-primary/5 rounded border border-primary/20 mb-4">
+                    <h4 class="font-bold text-sm text-primary mb-3"><i class="fa-solid fa-signature ml-1"></i> بيانات الطرف الأول (صاحب العمل) المعتمدة في العقود والمحاضر</h4>
+                    <div class="form-grid-3">
+                      <div class="form-group">
+                        <label class="form-label">اسم الطرف الأول الرسمي <span class="required">*</span></label>
+                        <input type="text" name="firstPartyName" class="form-control font-bold" placeholder="شركة أبو حذيفة للصرافة والتحويلات" required />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">اسم ممثل الطرف الأول (المفوض بالتوقيع) <span class="required">*</span></label>
+                        <input type="text" name="firstPartyRepName" class="form-control font-bold" placeholder="أبو حذيفة (المدير العام)" required />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">صفة / مسمى ممثل الطرف الأول <span class="required">*</span></label>
+                        <input type="text" name="firstPartyRepRole" class="form-control" placeholder="المدير العام التنفيذي" required />
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="form-grid-2">
                     <div class="form-group">
                       <label class="form-label">اسم الشركة الرسمي (عربي) <span class="required">*</span></label>
@@ -1016,10 +1038,58 @@
                 </div>
               </div>
 
+              <!-- Supabase Cloud Integration Card -->
+              <div class="card border-emerald-200">
+                <div class="card-header bg-emerald-50/50 flex justify-between items-center">
+                  <h3 class="text-emerald-950"><i class="fa-solid fa-cloud text-emerald"></i> ربط قاعدة بيانات Supabase السحابية</h3>
+                  <span id="supabase-status-badge" class="badge badge-slate text-xs">وضع محلي</span>
+                </div>
+                <div class="card-body">
+                  <form id="supabase-config-form">
+                    <div class="form-group">
+                      <label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-800">
+                        <input type="checkbox" name="supabaseEnabled" id="supabase-enabled-toggle" />
+                        <span>تفعيل المزامنة وقاعدة البيانات السحابية Supabase</span>
+                      </label>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label text-xs">عنوان المشروع السحابي (Project URL)</label>
+                      <input type="url" name="supabaseUrl" id="supabase-url-input" class="form-control form-control-sm font-mono ltr-text" placeholder="https://xyzcompany.supabase.co" />
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label text-xs">المفتاح العام (Anon Public Key)</label>
+                      <input type="password" name="supabaseAnonKey" id="supabase-anon-key-input" class="form-control form-control-sm font-mono ltr-text" placeholder="eyJhbGciOiJIUzI1NiIsInR5..." />
+                    </div>
+
+                    <div class="space-y-2 pt-2">
+                      <button type="submit" class="btn btn-sm btn-primary w-full">
+                        <i class="fa-solid fa-floppy-disk ml-1"></i> حفظ إعدادات Supabase
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline w-full" id="btn-test-supabase">
+                        <i class="fa-solid fa-plug ml-1"></i> اختبار الاتصال بـ Supabase
+                      </button>
+                      <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button type="button" class="btn btn-xs btn-outline" id="btn-sync-to-supabase">
+                          <i class="fa-solid fa-cloud-arrow-up ml-1"></i> رفع للسحابة
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline" id="btn-pull-from-supabase">
+                          <i class="fa-solid fa-cloud-arrow-down ml-1"></i> تنزيل من السحابة
+                        </button>
+                      </div>
+                      <div class="text-xs text-muted text-center mt-2">
+                        آخر مزامنة: <span id="supabase-last-sync-date">لم تتم</span>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
               <!-- Backup & Restore Card -->
               <div class="card border-cyan-200">
                 <div class="card-header bg-cyan-50/50">
-                  <h3 class="text-cyan-950"><i class="fa-solid fa-database text-cyan"></i> النسخ الاحتياطي والاستعادة</h3>
+                  <h3 class="text-cyan-950"><i class="fa-solid fa-database text-cyan"></i> النسخ الاحتياطي وإدارة البيانات</h3>
                 </div>
                 <div class="card-body">
                   <p class="text-xs text-slate-600 mb-4">
@@ -1040,9 +1110,12 @@
                       آخر نسخة احتياطية: <strong id="settings-last-backup-date">لم تجر بعد</strong>
                     </div>
 
-                    <div class="pt-3 border-t border-slate-100">
-                      <button type="button" class="btn btn-xs btn-ghost text-rose w-full" id="btn-reset-demo-data">
-                        <i class="fa-solid fa-rotate ml-1"></i> إعادة تعيين البيانات التجريبية
+                    <div class="pt-3 border-t border-slate-100 space-y-2">
+                      <button type="button" class="btn btn-xs btn-outline w-full" id="btn-load-sample-demo-data">
+                        <i class="fa-solid fa-vial ml-1"></i> تحميل عينة بيانات تجريبية للاختبار
+                      </button>
+                      <button type="button" class="btn btn-xs btn-ghost text-rose w-full" id="btn-clear-all-system-data">
+                        <i class="fa-solid fa-trash ml-1"></i> تفريغ وحذف كافة السجلات (بداية نظيفة)
                       </button>
                     </div>
                   </div>
@@ -1971,6 +2044,43 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" id="confirm-modal-cancel-btn">إلغاء</button>
         <button type="button" class="btn btn-danger" id="confirm-modal-submit-btn">تأكيد</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 16. Supabase Secure Login & Account Modal -->
+  <div class="app-modal" id="auth-modal">
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-user-lock text-primary"></i> تسجيل الدخول وإدارة الجلسة</h3>
+        <button type="button" class="modal-close-btn" data-close-modal>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="auth-logged-in-box" style="display: none;" class="p-4 bg-emerald-50 border border-emerald-200 rounded text-center mb-4">
+          <i class="fa-solid fa-circle-check text-emerald text-3xl mb-2"></i>
+          <div class="font-bold text-emerald-900" id="auth-current-user-email">user@company.com</div>
+          <div class="text-xs text-emerald-700 mt-1">أنت متصل بجلسة سحابية آمنة عبر Supabase</div>
+          <button type="button" class="btn btn-sm btn-outline text-rose mt-3 w-full" id="btn-supabase-logout">
+            <i class="fa-solid fa-right-from-bracket ml-1"></i> تسجيل الخروج
+          </button>
+        </div>
+
+        <form id="auth-login-form">
+          <div class="form-group">
+            <label class="form-label">البريد الإلكتروني</label>
+            <input type="email" name="email" id="auth-email-input" class="form-control ltr-text" placeholder="admin@abuhudhayfah.com" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">كلمة المرور</label>
+            <input type="password" name="password" id="auth-password-input" class="form-control ltr-text" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary w-full" id="btn-submit-cloud-login">
+            <i class="fa-solid fa-right-to-bracket ml-1"></i> تسجيل الدخول السحابي الآمن
+          </button>
+          <div class="text-xs text-muted text-center mt-3">
+            تنبيه: يتطلب تسجيل الدخول السحابي ضبط بيانات Supabase في شاشة الإعدادات.
+          </div>
+        </form>
       </div>
     </div>
   </div>
