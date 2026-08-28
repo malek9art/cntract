@@ -5,18 +5,28 @@
 
 import { db, TABLE_NAMES } from '../core/db.js';
 import { logAudit } from '../core/audit.js';
-import { showToast } from '../ui/toast.js';
 
 let supabaseClient = null;
 
 export async function getSupabaseConfig() {
   const settings = await db.get('settings', 'company_settings');
-  return settings?.supabaseConfig || {
-    enabled: false,
-    url: '',
-    anonKey: '',
-    autoSync: false,
-    lastSyncDate: null
+  const stored = settings?.supabaseConfig || {};
+
+  // Check if injected via GitHub Repository Secrets in window.ENV
+  const envUrl = window.ENV?.SUPABASE_URL || '';
+  const envKey = window.ENV?.SUPABASE_ANON_KEY || '';
+
+  const url = stored.url || envUrl;
+  const anonKey = stored.anonKey || envKey;
+  const enabled = stored.enabled !== undefined ? stored.enabled : (!!envUrl && !!envKey);
+
+  return {
+    enabled,
+    url,
+    anonKey,
+    autoSync: stored.autoSync || false,
+    lastSyncDate: stored.lastSyncDate || null,
+    requireAuth: settings?.requireAuthOnStart ?? (window.ENV?.REQUIRE_AUTH_ON_START ?? true)
   };
 }
 
@@ -26,6 +36,9 @@ export async function saveSupabaseConfig(config) {
     ...settings.supabaseConfig,
     ...config
   };
+  if (config.requireAuth !== undefined) {
+    settings.requireAuthOnStart = config.requireAuth;
+  }
   await db.put('settings', settings);
   await initSupabaseClient();
   return settings.supabaseConfig;
@@ -76,12 +89,11 @@ export async function testSupabaseConnection(url, anonKey) {
 
   try {
     const testClient = window.supabase.createClient(url, anonKey);
-    // Ping auth health or a public read
     const { data, error } = await testClient.auth.getSession();
     if (error && error.status >= 500) {
       throw error;
     }
-    return { success: true, message: 'تم الاتصال بقاعدة بيانات Supabase السحابية بنجاح!' };
+    return { success: true, message: 'تم الاتصال بقاعدة بيانات Supabase السحابية بنجاح! 🟢' };
   } catch (err) {
     throw new Error(`فشل الاتصال بـ Supabase: ${err.message || err}`);
   }
@@ -104,6 +116,14 @@ export async function supabaseSignIn(email, password) {
   if (error) {
     throw error;
   }
+
+  // Save session record
+  sessionStorage.setItem('ah_user_session', JSON.stringify({
+    email: data.user.email,
+    id: data.user.id,
+    type: 'supabase',
+    loginTime: new Date().toISOString()
+  }));
 
   await logAudit('تسجيل دخول سحابي', 'الأمان والمستخدمين', data.user.id, `تسجيل دخول ناجح للمستخدم عبر Supabase (${email})`, email);
   return data;
@@ -143,9 +163,15 @@ export async function supabaseSignUp(email, password, metadata = {}) {
 export async function supabaseSignOut() {
   const client = getSupabase();
   if (client) {
-    await client.auth.signOut();
+    try {
+      await client.auth.signOut();
+    } catch (e) {
+      console.warn('Signout warning:', e);
+    }
   }
-  await logAudit('تسجيل خروج', 'الأمان والمستخدمين', 'AUTH', 'تم تسجيل الخروج من الجلسة السحابية');
+  sessionStorage.removeItem('ah_user_session');
+  localStorage.removeItem('ah_local_auth_session');
+  await logAudit('تسجيل خروج', 'الأمان والمستخدمين', 'AUTH', 'تم تسجيل الخروج من الجلسة');
   return true;
 }
 
@@ -154,9 +180,21 @@ export async function supabaseSignOut() {
  */
 export async function getSupabaseCurrentUser() {
   const client = getSupabase();
-  if (!client) return null;
-  const { data } = await client.auth.getUser();
-  return data?.user || null;
+  if (client) {
+    try {
+      const { data } = await client.auth.getUser();
+      if (data?.user) return data.user;
+    } catch (e) {}
+  }
+  
+  // Check local session
+  const sess = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_local_auth_session');
+  if (sess) {
+    try {
+      return JSON.parse(sess);
+    } catch (e) {}
+  }
+  return null;
 }
 
 /**

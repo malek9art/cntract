@@ -4,6 +4,9 @@
 
 import { db } from '../core/db.js';
 import { formatDate } from '../utils/formatters.js';
+import { logAudit } from '../core/audit.js';
+import { showToast } from '../ui/toast.js';
+import { showConfirmDialog } from '../ui/modal.js';
 import { previewAndPrintDocument, buildCustodyHandoverVoucherHtml, buildCustodyReturnVoucherHtml } from '../services/pdf-service.js';
 
 export async function initVouchers() {
@@ -62,7 +65,10 @@ export async function renderVouchersList() {
         </td>
         <td class="text-end table-actions">
           <button class="btn btn-sm btn-primary" data-action="view-voucher-pdf" data-id="${v.id}" title="معاينة وطباعة المحضر">
-            <i class="fa-solid fa-print ml-1"></i> طباعة المحضر
+            <i class="fa-solid fa-print ml-1"></i> طباعة
+          </button>
+          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-voucher" data-id="${v.id}" title="حذف المحضر">
+            <i class="fa-solid fa-trash"></i>
           </button>
         </td>
       </tr>
@@ -94,6 +100,26 @@ function setupVoucherEvents() {
 
         const title = voucher.type === 'handover' ? `محضر استلام عهدة - ${voucher.voucherNumber}` : `محضر إرجاع عهدة - ${voucher.voucherNumber}`;
         await previewAndPrintDocument(title, html, `محضر_${voucher.voucherNumber}.pdf`, { module: 'المحاضر', recordId: voucher.id });
+      }
+    }
+
+    const deleteBtn = e.target.closest('[data-action="delete-voucher"]');
+    if (deleteBtn) {
+      const voucher = await db.get('vouchers', deleteBtn.dataset.id);
+      if (voucher) {
+        const confirmed = await showConfirmDialog({
+          title: 'تأكيد حذف المحضر',
+          message: `هل أنت متأكد من رغبتك في حذف المحضر <strong>(${voucher.voucherNumber})</strong>؟`,
+          confirmText: 'نعم، حذف المحضر',
+          isDanger: true
+        });
+
+        if (confirmed) {
+          await db.delete('vouchers', voucher.id);
+          await logAudit('حذف', 'المحاضر', voucher.id, `تم حذف المحضر: ${voucher.voucherNumber}`);
+          showToast(`تم حذف المحضر (${voucher.voucherNumber}).`);
+          await renderVouchersList();
+        }
       }
     }
   });

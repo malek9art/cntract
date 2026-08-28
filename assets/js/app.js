@@ -1,10 +1,10 @@
 /**
  * Abu Hudhayfah Exchange & Transfers - Master Application Orchestrator & Router
- * Enhanced with Service Worker PWA, Offline-First state management, and high-precision printing.
+ * Enhanced with Authentication Gate, Dynamic Branding, Service Worker PWA, and Cloud Sync.
  */
 
 import { db } from './core/db.js';
-import { setupModalListeners } from './ui/modal.js';
+import { setupModalListeners, openModal, closeModal } from './ui/modal.js';
 import { showToast } from './ui/toast.js';
 
 // Module initializers
@@ -20,7 +20,7 @@ import { initSalaries, renderSalariesList } from './modules/salaries.js';
 import { initDocuments, renderDocumentsList, openUploadDocumentModal } from './modules/documents.js';
 import { initReports, renderReportView } from './modules/reports.js';
 import { initAuditLog, renderAuditLogList } from './modules/audit-log.js';
-import { initSettings } from './modules/settings.js';
+import { initSettings, applyBranding } from './modules/settings.js';
 import {
   initSupabaseClient,
   supabaseSignIn,
@@ -28,17 +28,24 @@ import {
   getSupabaseCurrentUser,
   isSupabaseConnected
 } from './services/supabase-service.js';
-import { openModal, closeModal } from './ui/modal.js';
 
 class App {
   constructor() {
     this.currentView = 'dashboard';
+    this.isAuthenticated = false;
   }
 
   async start() {
     try {
       console.log('Starting Abu Hudhayfah HR & Contracts Management System...');
       await db.init();
+      
+      const settings = await db.get('settings', 'company_settings');
+      if (settings) {
+        applyBranding(settings);
+      }
+
+      await initSupabaseClient();
       setupModalListeners();
       this.setupRouter();
       this.setupGlobalEvents();
@@ -50,6 +57,9 @@ class App {
       this.setupOfflineMonitor();
       this.registerServiceWorker();
 
+      // Enforce authentication gate
+      await this.checkAuthenticationGate();
+
       // Navigate to initial hash or dashboard
       const hash = window.location.hash.replace('#', '') || 'dashboard';
       await this.navigate(hash);
@@ -57,6 +67,110 @@ class App {
     } catch (error) {
       console.error('System initialization error:', error);
       showToast('حدث خطأ أثناء تهيئة قاعدة البيانات المحلية.', 'error');
+    }
+  }
+
+  async checkAuthenticationGate() {
+    const settings = await db.get('settings', 'company_settings');
+    const requireAuth = settings?.requireAuthOnStart ?? (window.ENV?.REQUIRE_AUTH_ON_START ?? true);
+    const gate = document.getElementById('app-login-gate');
+
+    const currentUser = await getSupabaseCurrentUser();
+    const localSession = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_local_auth_session');
+
+    if (currentUser || localSession || !requireAuth) {
+      this.isAuthenticated = true;
+      if (gate) gate.style.display = 'none';
+      this.updateUserBadge(currentUser?.email || (localSession ? JSON.parse(localSession).name : 'مدير النظام'));
+      return true;
+    }
+
+    // Show Login Gate
+    if (gate) {
+      gate.style.display = 'flex';
+    }
+    this.isAuthenticated = false;
+    this.setupLoginGateEvents();
+    return false;
+  }
+
+  updateUserBadge(nameOrEmail) {
+    const badgeName = document.querySelector('.topbar-user-badge .user-name');
+    if (badgeName && nameOrEmail) {
+      badgeName.textContent = nameOrEmail;
+    }
+  }
+
+  setupLoginGateEvents() {
+    const gate = document.getElementById('app-login-gate');
+    const form = document.getElementById('gate-login-form');
+    const bypassBtn = document.getElementById('btn-gate-offline-bypass');
+
+    if (bypassBtn) {
+      bypassBtn.addEventListener('click', () => {
+        sessionStorage.setItem('ah_user_session', JSON.stringify({
+          name: 'مدير النظام (أبو حذيفة)',
+          role: 'admin',
+          type: 'local',
+          loginTime: new Date().toISOString()
+        }));
+        this.isAuthenticated = true;
+        if (gate) gate.style.display = 'none';
+        this.updateUserBadge('مدير النظام (أبو حذيفة)');
+        showToast('مرحباً بك! تم تسجيل الدخول كمسؤول النظام.');
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('gate-username-input')?.value.trim();
+        const password = document.getElementById('gate-password-input')?.value;
+        const btn = document.getElementById('btn-gate-submit-login');
+
+        try {
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري التحقق...';
+          }
+
+          // 1. Try Supabase Cloud Login if configured and username looks like email
+          if (isSupabaseConnected() && username.includes('@')) {
+            try {
+              const authRes = await supabaseSignIn(username, password);
+              this.isAuthenticated = true;
+              if (gate) gate.style.display = 'none';
+              this.updateUserBadge(username);
+              showToast(`تم تسجيل الدخول السحابي بنجاح (${username})`);
+              return;
+            } catch (err) {
+              // If failed on cloud, check local fallback
+              console.warn('Supabase login failed, checking local credentials:', err.message);
+            }
+          }
+
+          // 2. Local Fallback Authentication
+          if ((username.toLowerCase() === 'admin' || username.includes('admin') || username === 'أبو حذيفة') && (password === '1234' || password === 'admin' || password === '123456')) {
+            sessionStorage.setItem('ah_user_session', JSON.stringify({
+              name: 'مدير النظام (أبو حذيفة)',
+              role: 'admin',
+              type: 'local',
+              loginTime: new Date().toISOString()
+            }));
+            this.isAuthenticated = true;
+            if (gate) gate.style.display = 'none';
+            this.updateUserBadge('مدير النظام (أبو حذيفة)');
+            showToast('تم تسجيل الدخول بنجاح كمسؤول النظام.');
+          } else {
+            showToast('اسم المستخدم أو كلمة المرور غير صحيحة.', 'error');
+          }
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket ml-2"></i> الدخول إلى النظام';
+          }
+        }
+      });
     }
   }
 
@@ -188,10 +302,10 @@ class App {
         const loginForm = document.getElementById('auth-login-form');
         const emailEl = document.getElementById('auth-current-user-email');
 
-        if (user) {
+        if (user || sessionStorage.getItem('ah_user_session')) {
           if (loggedInBox) loggedInBox.style.display = 'block';
           if (loginForm) loginForm.style.display = 'none';
-          if (emailEl) emailEl.textContent = user.email;
+          if (emailEl) emailEl.textContent = user?.email || JSON.parse(sessionStorage.getItem('ah_user_session') || '{}').name || 'مدير النظام';
         } else {
           if (loggedInBox) loggedInBox.style.display = 'none';
           if (loginForm) loginForm.style.display = 'block';
@@ -201,7 +315,7 @@ class App {
       });
     }
 
-    // Cloud Login Form Submit
+    // Cloud Login Form Submit inside modal
     const loginForm = document.getElementById('auth-login-form');
     if (loginForm) {
       loginForm.addEventListener('submit', async (e) => {
@@ -216,6 +330,7 @@ class App {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري التحقق...';
           }
           await supabaseSignIn(email, password);
+          this.updateUserBadge(email);
           showToast(`تم تسجيل الدخول بنجاح للمستخدم (${email})`);
           closeModal('auth-modal');
           loginForm.reset();
@@ -231,13 +346,15 @@ class App {
       });
     }
 
-    // Cloud Logout
+    // Cloud & Local Logout
     const logoutBtn = document.getElementById('btn-supabase-logout');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
         await supabaseSignOut();
-        showToast('تم تسجيل الخروج من الجلسة السحابية.');
+        showToast('تم تسجيل الخروج.');
         closeModal('auth-modal');
+        const gate = document.getElementById('app-login-gate');
+        if (gate) gate.style.display = 'flex';
       });
     }
   }

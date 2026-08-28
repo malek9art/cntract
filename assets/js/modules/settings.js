@@ -21,6 +21,23 @@ import { generateId } from '../utils/helpers.js';
 
 let currentEditingBranchId = null;
 
+export function applyBranding(settings) {
+  if (!settings) return;
+
+  const logoUrl = settings.logoUrl || 'assets/images/logo.svg';
+  const stampUrl = settings.stampUrl || 'assets/images/stamp.svg';
+
+  document.querySelectorAll('.topbar-logo-img, .sidebar-logo-img').forEach(img => {
+    img.src = logoUrl;
+  });
+
+  const previewLogo = document.getElementById('settings-logo-preview-img');
+  if (previewLogo) previewLogo.src = logoUrl;
+
+  const previewStamp = document.getElementById('settings-stamp-preview-img');
+  if (previewStamp) previewStamp.src = stampUrl;
+}
+
 export async function initSettings() {
   await loadCompanySettingsForm();
   await loadSupabaseSettingsForm();
@@ -47,16 +64,25 @@ export async function loadCompanySettingsForm() {
   form.elements['phone'].value = settings.phone || '';
   form.elements['phoneSecondary'].value = settings.phoneSecondary || '';
   form.elements['email'].value = settings.email || '';
+  form.elements['logoUrl'].value = settings.logoUrl || 'assets/images/logo.svg';
+  form.elements['stampUrl'].value = settings.stampUrl || 'assets/images/stamp.svg';
   form.elements['defaultProbationPeriod'].value = settings.defaultProbationPeriod || '3 أشهر';
   form.elements['defaultWorkingHours'].value = settings.defaultWorkingHours || '8 ساعات يومياً';
   form.elements['defaultWorkingDays'].value = settings.defaultWorkingDays || 'من السبت إلى الخميس';
   form.elements['defaultNoticePeriod'].value = settings.defaultNoticePeriod || '30 يوماً';
   form.elements['legalDisclaimer'].value = settings.legalDisclaimer || '';
 
+  const requireAuthCheckbox = document.getElementById('settings-require-auth-toggle');
+  if (requireAuthCheckbox) {
+    requireAuthCheckbox.checked = settings.requireAuthOnStart !== false;
+  }
+
   const lastBackupEl = document.getElementById('settings-last-backup-date');
   if (lastBackupEl) {
     lastBackupEl.textContent = settings.lastBackupDate ? formatDate(settings.lastBackupDate) : 'لم يتم إجراء نسخة احتياطية بعد';
   }
+
+  applyBranding(settings);
 }
 
 export async function loadSupabaseSettingsForm() {
@@ -92,6 +118,7 @@ export async function saveCompanySettings(e) {
   e.preventDefault();
   const form = document.getElementById('company-settings-form');
   const existing = await db.get('settings', 'company_settings') || {};
+  const requireAuthCheckbox = document.getElementById('settings-require-auth-toggle');
 
   const updatedSettings = {
     ...existing,
@@ -107,17 +134,21 @@ export async function saveCompanySettings(e) {
     phone: form.elements['phone'].value.trim(),
     phoneSecondary: form.elements['phoneSecondary'].value.trim(),
     email: form.elements['email'].value.trim(),
+    logoUrl: form.elements['logoUrl'].value.trim() || 'assets/images/logo.svg',
+    stampUrl: form.elements['stampUrl'].value.trim() || 'assets/images/stamp.svg',
     defaultProbationPeriod: form.elements['defaultProbationPeriod'].value.trim(),
     defaultWorkingHours: form.elements['defaultWorkingHours'].value.trim(),
     defaultWorkingDays: form.elements['defaultWorkingDays'].value.trim(),
     defaultNoticePeriod: form.elements['defaultNoticePeriod'].value.trim(),
     legalDisclaimer: form.elements['legalDisclaimer'].value.trim(),
+    requireAuthOnStart: requireAuthCheckbox ? requireAuthCheckbox.checked : true,
     updatedAt: new Date().toISOString()
   };
 
   await db.put('settings', updatedSettings);
-  await logAudit('تحديث الإعدادات', 'الإعدادات', 'company_settings', `تم تحديث بيانات الطرف الأول (${updatedSettings.firstPartyName}) والممثل المفوض (${updatedSettings.firstPartyRepName})`);
-  showToast('تم حفظ بيانات الطرف الأول وإعدادات الشركة بنجاح.');
+  applyBranding(updatedSettings);
+  await logAudit('تحديث الإعدادات', 'الإعدادات', 'company_settings', `تم تحديث بيانات الطرف الأول (${updatedSettings.firstPartyName}) والشعار والإعدادات العامة`);
+  showToast('تم حفظ بيانات الشركة والشعار والطرف الأول بنجاح.');
 }
 
 export async function renderBranchesList() {
@@ -225,6 +256,54 @@ function setupSettingsEvents() {
 
   const addBranchBtn = document.getElementById('btn-add-branch');
   if (addBranchBtn) addBranchBtn.addEventListener('click', () => openBranchModal(null));
+
+  // Logo File Upload handler (Convert to Base64)
+  const logoFileInput = document.getElementById('logo-file-input');
+  if (logoFileInput) {
+    logoFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('حجم صورة الشعار يجب ألا يتجاوز 2 ميجابايت.', 'warning');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64Data = event.target.result;
+          const urlInput = document.getElementById('settings-logo-url-input');
+          const preview = document.getElementById('settings-logo-preview-img');
+          if (urlInput) urlInput.value = base64Data;
+          if (preview) preview.src = base64Data;
+          showToast('تم تحميل صورة الشعار بنجاح. اضغط حفظ الإعدادات لتثبيتها.');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  // Stamp File Upload handler (Convert to Base64)
+  const stampFileInput = document.getElementById('stamp-file-input');
+  if (stampFileInput) {
+    stampFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('حجم صورة الختم يجب ألا يتجاوز 2 ميجابايت.', 'warning');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64Data = event.target.result;
+          const urlInput = document.getElementById('settings-stamp-url-input');
+          const preview = document.getElementById('settings-stamp-preview-img');
+          if (urlInput) urlInput.value = base64Data;
+          if (preview) preview.src = base64Data;
+          showToast('تم تحميل صورة الختم بنجاح. اضغط حفظ الإعدادات لتثبيتها.');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
 
   // Supabase Form & Actions
   const supabaseForm = document.getElementById('supabase-config-form');
