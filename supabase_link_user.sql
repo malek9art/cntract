@@ -1,14 +1,14 @@
 -- =========================================================================
--- شركة أبو حذيفة للصرافة والتحويلات - سكريبت ربط وترقية المستخدم في Supabase
+-- شركة أبو حذيفة للصرافة والتحويلات - سكريبت ربط وترقية المستخدم في Supabase (مصحح)
 -- UID المستهدف: ffa2488c-57f0-46bf-8e83-5f166299119b
 -- البريد الإلكتروني: abuhdyfh@gmail.com
 -- =========================================================================
 
 -- 1. تأكيد البريد الإلكتروني وترقية صلاحيات المستخدم إلى مدير عام في auth.users
+-- ملاحظة: confirmed_at هو عمود يتم توليده تلقائياً من email_confirmed_at
 UPDATE auth.users
 SET 
     email_confirmed_at = COALESCE(email_confirmed_at, now()),
-    confirmed_at = COALESCE(confirmed_at, now()),
     raw_app_meta_data = raw_app_meta_data || '{"provider": "email", "providers": ["email"], "role": "admin", "is_super_admin": true}'::jsonb,
     raw_user_meta_data = raw_user_meta_data || '{"full_name": "أبو حذيفة (المدير العام)", "role": "admin", "company": "شركة أبو حذيفة للصرافة والتحويلات"}'::jsonb
 WHERE id = 'ffa2488c-57f0-46bf-8e83-5f166299119b'
