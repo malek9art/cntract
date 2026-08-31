@@ -1,6 +1,6 @@
 /**
  * Abu Hudhayfah Exchange & Transfers - Master Application Orchestrator & Router
- * Enhanced with Authentication Gate, Dynamic Branding, Service Worker PWA, and Cloud Sync.
+ * Enhanced with Authentication Gate, Supabase Cloud Auth & Sign-Up, Dynamic Branding, and Auto-Sync.
  */
 
 import { db } from './core/db.js';
@@ -24,15 +24,18 @@ import { initSettings, applyBranding } from './modules/settings.js';
 import {
   initSupabaseClient,
   supabaseSignIn,
+  supabaseSignUp,
   supabaseSignOut,
   getSupabaseCurrentUser,
-  isSupabaseConnected
+  isSupabaseConnected,
+  syncSupabaseToLocal
 } from './services/supabase-service.js';
 
 class App {
   constructor() {
     this.currentView = 'dashboard';
     this.isAuthenticated = false;
+    this.gateMode = 'signin'; // 'signin' or 'signup'
   }
 
   async start() {
@@ -76,12 +79,13 @@ class App {
     const gate = document.getElementById('app-login-gate');
 
     const currentUser = await getSupabaseCurrentUser();
-    const localSession = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_local_auth_session');
+    const localSession = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session');
 
     if (currentUser || localSession || !requireAuth) {
       this.isAuthenticated = true;
       if (gate) gate.style.display = 'none';
-      this.updateUserBadge(currentUser?.email || (localSession ? JSON.parse(localSession).name : 'مدير النظام'));
+      const userDisplayName = currentUser?.email || (localSession ? JSON.parse(localSession).name || JSON.parse(localSession).email : 'مدير النظام');
+      this.updateUserBadge(userDisplayName);
       return true;
     }
 
@@ -105,7 +109,52 @@ class App {
     const gate = document.getElementById('app-login-gate');
     const form = document.getElementById('gate-login-form');
     const bypassBtn = document.getElementById('btn-gate-offline-bypass');
+    const openSettingsBtn = document.getElementById('btn-gate-open-settings');
+    const tabSignIn = document.getElementById('tab-gate-signin');
+    const tabSignUp = document.getElementById('tab-gate-signup');
+    const nameGroup = document.getElementById('gate-signup-name-group');
+    const submitBtnText = document.getElementById('gate-submit-btn-text');
+    const msgBox = document.getElementById('gate-auth-message-box');
 
+    const showGateMessage = (msg, isError = true) => {
+      if (!msgBox) return;
+      msgBox.style.display = 'block';
+      msgBox.style.background = isError ? '#FEF2F2' : '#F0FDF4';
+      msgBox.style.border = isError ? '1px solid #F87171' : '1px solid #4ADE80';
+      msgBox.style.color = isError ? '#991B1B' : '#166534';
+      msgBox.innerHTML = `${isError ? '<i class="fa-solid fa-circle-exclamation ml-1"></i>' : '<i class="fa-solid fa-circle-check ml-1"></i>'} ${msg}`;
+    };
+
+    const clearGateMessage = () => {
+      if (msgBox) {
+        msgBox.style.display = 'none';
+        msgBox.innerHTML = '';
+      }
+    };
+
+    // Switch to Sign In Tab
+    if (tabSignIn && tabSignUp) {
+      tabSignIn.addEventListener('click', () => {
+        this.gateMode = 'signin';
+        tabSignIn.className = 'btn btn-sm flex-1 bg-white shadow-sm font-bold text-primary';
+        tabSignUp.className = 'btn btn-sm flex-1 btn-ghost text-slate-600 font-bold';
+        if (nameGroup) nameGroup.style.display = 'none';
+        if (submitBtnText) submitBtnText.textContent = 'الدخول إلى النظام';
+        clearGateMessage();
+      });
+
+      // Switch to Sign Up Tab
+      tabSignUp.addEventListener('click', () => {
+        this.gateMode = 'signup';
+        tabSignUp.className = 'btn btn-sm flex-1 bg-white shadow-sm font-bold text-primary';
+        tabSignIn.className = 'btn btn-sm flex-1 btn-ghost text-slate-600 font-bold';
+        if (nameGroup) nameGroup.style.display = 'block';
+        if (submitBtnText) submitBtnText.textContent = 'إنشاء الحساب السحابي والمتابعة';
+        clearGateMessage();
+      });
+    }
+
+    // Bypass / Admin Local Mode
     if (bypassBtn) {
       bypassBtn.addEventListener('click', () => {
         sessionStorage.setItem('ah_user_session', JSON.stringify({
@@ -121,35 +170,93 @@ class App {
       });
     }
 
+    // Shortcut to Open Settings and Configure Cloud
+    if (openSettingsBtn) {
+      openSettingsBtn.addEventListener('click', () => {
+        if (gate) gate.style.display = 'none';
+        window.location.hash = '#settings';
+        showToast('يمكنك ضبط مفاتيح Supabase من قسم الربط السحابي في الإعدادات.', 'info');
+      });
+    }
+
+    // Submit Form (Sign In or Sign Up)
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('gate-username-input')?.value.trim();
-        const password = document.getElementById('gate-password-input')?.value;
+        clearGateMessage();
+
+        const username = (document.getElementById('gate-username-input')?.value || '').trim();
+        const password = document.getElementById('gate-password-input')?.value || '';
+        const fullName = (document.getElementById('gate-fullname-input')?.value || '').trim();
         const btn = document.getElementById('btn-gate-submit-login');
+
+        if (!username || !password) {
+          showGateMessage('يرجى إدخال البريد الإلكتروني وكلمة المرور.');
+          return;
+        }
 
         try {
           if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري التحقق...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري المعالجة...';
           }
 
-          // 1. Try Supabase Cloud Login if configured and username looks like email
-          if (isSupabaseConnected() && username.includes('@')) {
+          // 1. SIGN UP MODE (إنشاء حساب سحابي جديد في Supabase)
+          if (this.gateMode === 'signup') {
+            if (!username.includes('@')) {
+              showGateMessage('يرجى إدخال بريد إلكتروني صحيح لإنشاء الحساب السحابي.');
+              return;
+            }
+
+            try {
+              const signUpRes = await supabaseSignUp(username, password, { fullName: fullName || 'أبو حذيفة' });
+              
+              if (signUpRes.session) {
+                // Logged in immediately
+                this.isAuthenticated = true;
+                if (gate) gate.style.display = 'none';
+                this.updateUserBadge(username);
+                showToast(`تم إنشاء الحساب وتسجيل الدخول بنجاح (${username})`);
+              } else {
+                // Email confirmation required by Supabase
+                showGateMessage(`تم إنشاء الحساب بنجاح لـ <strong>${username}</strong>! إذا كان خيار تأكيد البريد مفعلاً في Supabase، يرجى مراجعة صندوق بريدك لتأكيد الرابط ثم تسجيل الدخول.`, false);
+                // Switch back to Sign In tab
+                if (tabSignIn) tabSignIn.click();
+              }
+              return;
+            } catch (err) {
+              showGateMessage(err.message || 'فشل إنشاء الحساب السحابي.');
+              return;
+            }
+          }
+
+          // 2. SIGN IN MODE (تسجيل الدخول السحابي أو المحلي)
+          const isEmail = username.includes('@');
+
+          if (isEmail) {
             try {
               const authRes = await supabaseSignIn(username, password);
               this.isAuthenticated = true;
               if (gate) gate.style.display = 'none';
               this.updateUserBadge(username);
-              showToast(`تم تسجيل الدخول السحابي بنجاح (${username})`);
+              showToast(`مرحباً بك! تم تسجيل الدخول السحابي بنجاح (${username}) 🟢`);
+
+              // Auto-pull fresh cloud data in background
+              syncSupabaseToLocal().then(res => {
+                if (res.count > 0) {
+                  console.log(`[Supabase] Auto-synced ${res.count} records after login.`);
+                }
+              }).catch(e => console.warn('Background sync note:', e));
+
               return;
-            } catch (err) {
-              // If failed on cloud, check local fallback
-              console.warn('Supabase login failed, checking local credentials:', err.message);
+            } catch (cloudErr) {
+              // Show clear Supabase error message
+              showGateMessage(cloudErr.message);
+              return;
             }
           }
 
-          // 2. Local Fallback Authentication
+          // Local Admin Fallback (إذا كتب اسم المستخدم admin أو كلمة المرور الافتراضية)
           if ((username.toLowerCase() === 'admin' || username.includes('admin') || username === 'أبو حذيفة') && (password === '1234' || password === 'admin' || password === '123456')) {
             sessionStorage.setItem('ah_user_session', JSON.stringify({
               name: 'مدير النظام (أبو حذيفة)',
@@ -162,12 +269,12 @@ class App {
             this.updateUserBadge('مدير النظام (أبو حذيفة)');
             showToast('تم تسجيل الدخول بنجاح كمسؤول النظام.');
           } else {
-            showToast('اسم المستخدم أو كلمة المرور غير صحيحة.', 'error');
+            showGateMessage('اسم المستخدم أو كلمة المرور غير صحيحة. للدخول السحابي يرجى كتابة بريدك الإلكتروني الكامل (مثل abuhdyfh@gmail.com).');
           }
         } finally {
           if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket ml-2"></i> الدخول إلى النظام';
+            btn.innerHTML = `<i class="fa-solid fa-right-to-bracket ml-2"></i> <span>${this.gateMode === 'signup' ? 'إنشاء الحساب السحابي والمتابعة' : 'الدخول إلى النظام'}</span>`;
           }
         }
       });
@@ -302,10 +409,11 @@ class App {
         const loginForm = document.getElementById('auth-login-form');
         const emailEl = document.getElementById('auth-current-user-email');
 
-        if (user || sessionStorage.getItem('ah_user_session')) {
+        if (user || sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session')) {
           if (loggedInBox) loggedInBox.style.display = 'block';
           if (loginForm) loginForm.style.display = 'none';
-          if (emailEl) emailEl.textContent = user?.email || JSON.parse(sessionStorage.getItem('ah_user_session') || '{}').name || 'مدير النظام';
+          const sessObj = JSON.parse(sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session') || '{}');
+          if (emailEl) emailEl.textContent = user?.email || sessObj.email || sessObj.name || 'مدير النظام';
         } else {
           if (loggedInBox) loggedInBox.style.display = 'none';
           if (loginForm) loginForm.style.display = 'block';

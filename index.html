@@ -36,7 +36,7 @@
 
   <!-- Full Screen Secure Login Gate -->
   <div id="app-login-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: rgba(10, 25, 47, 0.95); justify-content: center; align-items: center;">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-fade-in" style="width: 100%; max-width: 440px; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-fade-in" style="width: 100%; max-width: 460px; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
       <div class="p-6 text-white text-center relative" style="background: linear-gradient(135deg, #0A192F 0%, #0F294A 100%); padding: 1.5rem; text-align: center; color: white;">
         <div class="w-20 h-20 bg-white/10 rounded-2xl p-2 mx-auto mb-3 flex items-center justify-center border border-white/20" style="width: 80px; height: 80px; margin: 0 auto 12px; background: rgba(255,255,255,0.1); border-radius: 1rem; display: flex; align-items: center; justify-content: center;">
           <img id="login-gate-logo-img" src="assets/images/logo.svg" alt="أبو حذيفة للصرافة" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
@@ -46,38 +46,56 @@
       </div>
 
       <div style="padding: 1.5rem;">
-        <div style="text-align: center; margin-bottom: 1rem;">
-          <span class="badge badge-subtle-blue" style="font-size: 0.8rem; padding: 4px 12px;">
-            <i class="fa-solid fa-shield-halved ml-1"></i> تسجيل الدخول والمصادقة الأمنية
-          </span>
+        <!-- Auth Tabs (Sign In / Sign Up) -->
+        <div class="flex gap-2 p-1 bg-slate-100 rounded-lg mb-4">
+          <button type="button" id="tab-gate-signin" class="btn btn-sm flex-1 bg-white shadow-sm font-bold text-primary" style="padding: 6px 12px; border-radius: 6px;">
+            <i class="fa-solid fa-right-to-bracket ml-1"></i> تسجيل الدخول
+          </button>
+          <button type="button" id="tab-gate-signup" class="btn btn-sm flex-1 btn-ghost text-slate-600 font-bold" style="padding: 6px 12px; border-radius: 6px;">
+            <i class="fa-solid fa-user-plus ml-1"></i> إنشاء حساب سحابي
+          </button>
         </div>
 
+        <!-- Dynamic Alert Message Box -->
+        <div id="gate-auth-message-box" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 0.8rem; line-height: 1.5; margin-bottom: 1rem;"></div>
+
+        <!-- Login Form -->
         <form id="gate-login-form" class="space-y-4">
+          <div id="gate-signup-name-group" class="form-group" style="display: none; margin-bottom: 1rem;">
+            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">الاسم الكامل / المسمى</label>
+            <input type="text" id="gate-fullname-input" class="form-control" placeholder="أبو حذيفة (المدير العام)" />
+          </div>
+
           <div class="form-group" style="margin-bottom: 1rem;">
-            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">البريد الإلكتروني أو اسم المستخدم</label>
-            <input type="text" id="gate-username-input" class="form-control ltr-text" placeholder="admin أو البريد الإلكتروني" required />
+            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">البريد الإلكتروني / اسم المستخدم</label>
+            <input type="text" id="gate-username-input" class="form-control ltr-text" placeholder="abuhdyfh@gmail.com أو admin" required />
           </div>
 
           <div class="form-group" style="margin-bottom: 1.25rem;">
-            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">كلمة المرور أو الرمز السري</label>
+            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">كلمة المرور</label>
             <input type="password" id="gate-password-input" class="form-control ltr-text" placeholder="••••••••" required />
           </div>
 
           <button type="submit" class="btn btn-primary w-full py-2" id="btn-gate-submit-login" style="width: 100%; padding: 0.65rem;">
-            <i class="fa-solid fa-right-to-bracket ml-2"></i> الدخول إلى النظام
+            <i class="fa-solid fa-right-to-bracket ml-2"></i> <span id="gate-submit-btn-text">الدخول إلى النظام</span>
           </button>
 
-          <div style="text-align: center; margin-top: 1rem;">
+          <div class="flex justify-between items-center pt-2" style="margin-top: 1rem; border-top: 1px solid #f1f5f9;">
             <button type="button" class="btn btn-xs btn-ghost text-primary" id="btn-gate-offline-bypass">
-              <i class="fa-solid fa-key ml-1"></i> دخول سريع بحساب المسؤول (Admin / 1234)
+              <i class="fa-solid fa-shield-halved ml-1"></i> دخول كمسؤول محلي (Admin)
+            </button>
+            <button type="button" class="btn btn-xs btn-ghost text-cyan" id="btn-gate-open-settings">
+              <i class="fa-solid fa-gear ml-1"></i> ضبط مفاتيح السحابة
             </button>
           </div>
         </form>
       </div>
 
       <div style="padding: 0.75rem; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 0.75rem; color: #64748b;">
-        <i class="fa-solid fa-lock text-emerald ml-1"></i> جلسة عمل مشفرة ومحمية
+        <i class="fa-solid fa-cloud text-emerald ml-1"></i> متوافق مع مصادقة Supabase السحابية والتخزين المحلي
       </div>
+    </div>
+  </div>
     </div>
   </div>
 

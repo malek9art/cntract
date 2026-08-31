@@ -8,17 +8,45 @@ import { logAudit } from '../core/audit.js';
 
 let supabaseClient = null;
 
+export function translateSupabaseAuthError(err) {
+  if (!err) return 'حدث خطأ غير معروف أثناء تسجيل الدخول.';
+  const msg = typeof err === 'string' ? err : (err.message || '');
+
+  if (msg.includes('Invalid login credentials') || msg.includes('invalid_grant')) {
+    return 'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى التأكد من كلمة المرور المسجلة في Supabase.';
+  }
+  if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+    return 'لم يتم تأكيد البريد الإلكتروني بعد! يرجى مراجعة رابط التأكيد المرسل إلى بريدك، أو قم بإلغاء خيار (Confirm Email) من لوحة تحكم Supabase > Authentication > Providers > Email.';
+  }
+  if (msg.includes('User not found') || msg.includes('user_not_found')) {
+    return 'المستخدم غير مسجل في قاعدة بيانات Supabase. يرجى إنشاء حساب جديد أولاً.';
+  }
+  if (msg.includes('Password should be at least')) {
+    return 'يجب أن تتكون كلمة المرور من 6 خانات على الأقل.';
+  }
+  if (msg.includes('User already registered') || msg.includes('user_already_exists')) {
+    return 'هذا البريد الإلكتروني مسجل بالفعل. يرجى الانتقال إلى تسجيل الدخول.';
+  }
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+    return 'تعذر الاتصال بخادم Supabase. يرجى التحقق من اتصال الإنترنت وصحة Project URL.';
+  }
+  if (msg.includes('JWT') || msg.includes('apiKey') || msg.includes('anon')) {
+    return 'مفتاح Supabase Anon Key غير صحيح أو منتهي الصلاحية.';
+  }
+  return `خطأ المصادقة السحابية: ${msg}`;
+}
+
 export async function getSupabaseConfig() {
   const settings = await db.get('settings', 'company_settings');
   const stored = settings?.supabaseConfig || {};
 
   // Check if injected via GitHub Repository Secrets in window.ENV
-  const envUrl = window.ENV?.SUPABASE_URL || '';
-  const envKey = window.ENV?.SUPABASE_ANON_KEY || '';
+  const envUrl = (window.ENV?.SUPABASE_URL || '').trim();
+  const envKey = (window.ENV?.SUPABASE_ANON_KEY || '').trim();
 
-  const url = stored.url || envUrl;
-  const anonKey = stored.anonKey || envKey;
-  const enabled = stored.enabled !== undefined ? stored.enabled : (!!envUrl && !!envKey);
+  const url = (stored.url || envUrl || '').trim();
+  const anonKey = (stored.anonKey || envKey || '').trim();
+  const enabled = (stored.enabled !== false && !!url && !!anonKey) || (!!envUrl && !!envKey);
 
   return {
     enabled,
@@ -46,7 +74,7 @@ export async function saveSupabaseConfig(config) {
 
 export async function initSupabaseClient() {
   const config = await getSupabaseConfig();
-  if (config.enabled && config.url && config.anonKey) {
+  if (config.url && config.anonKey) {
     if (window.supabase && typeof window.supabase.createClient === 'function') {
       try {
         supabaseClient = window.supabase.createClient(config.url, config.anonKey, {
@@ -88,7 +116,7 @@ export async function testSupabaseConnection(url, anonKey) {
   }
 
   try {
-    const testClient = window.supabase.createClient(url, anonKey);
+    const testClient = window.supabase.createClient(url.trim(), anonKey.trim());
     const { data, error } = await testClient.auth.getSession();
     if (error && error.status >= 500) {
       throw error;
@@ -103,18 +131,23 @@ export async function testSupabaseConnection(url, anonKey) {
  * Supabase Secure Auth: Sign In with Email & Password
  */
 export async function supabaseSignIn(email, password) {
-  const client = getSupabase();
+  let client = getSupabase();
   if (!client) {
-    throw new Error('خدمة Supabase غير مفعّلة في إعدادات النظام. يمكنك تفعيلها من شاشة الإعدادات.');
+    client = await initSupabaseClient();
   }
 
+  if (!client) {
+    throw new Error('خدمة Supabase غير مفعّلة أو لم يتم ضبط عنوان المشروع Project URL والمفتاح العام في الإعدادات.');
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
   const { data, error } = await client.auth.signInWithPassword({
-    email: email.trim(),
+    email: cleanEmail,
     password: password
   });
 
   if (error) {
-    throw error;
+    throw new Error(translateSupabaseAuthError(error));
   }
 
   // Save session record
@@ -125,7 +158,14 @@ export async function supabaseSignIn(email, password) {
     loginTime: new Date().toISOString()
   }));
 
-  await logAudit('تسجيل دخول سحابي', 'الأمان والمستخدمين', data.user.id, `تسجيل دخول ناجح للمستخدم عبر Supabase (${email})`, email);
+  localStorage.setItem('ah_user_session', JSON.stringify({
+    email: data.user.email,
+    id: data.user.id,
+    type: 'supabase',
+    loginTime: new Date().toISOString()
+  }));
+
+  await logAudit('تسجيل دخول سحابي', 'الأمان والمستخدمين', data.user.id, `تسجيل دخول ناجح للمستخدم عبر Supabase (${cleanEmail})`, cleanEmail);
   return data;
 }
 
@@ -133,13 +173,18 @@ export async function supabaseSignIn(email, password) {
  * Supabase Secure Auth: Sign Up New Operator Account
  */
 export async function supabaseSignUp(email, password, metadata = {}) {
-  const client = getSupabase();
+  let client = getSupabase();
   if (!client) {
-    throw new Error('خدمة Supabase غير مفعّلة في إعدادات النظام.');
+    client = await initSupabaseClient();
   }
 
+  if (!client) {
+    throw new Error('خدمة Supabase غير مهيأة. يرجى إدخال Project URL و Anon Key في الإعدادات أولاً.');
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
   const { data, error } = await client.auth.signUp({
-    email: email.trim(),
+    email: cleanEmail,
     password: password,
     options: {
       data: {
@@ -150,10 +195,19 @@ export async function supabaseSignUp(email, password, metadata = {}) {
   });
 
   if (error) {
-    throw error;
+    throw new Error(translateSupabaseAuthError(error));
   }
 
-  await logAudit('إنشاء حساب سحابي', 'الأمان والمستخدمين', data.user?.id || 'NEW', `إنشاء مستخدم سحابي جديد (${email})`);
+  if (data.session) {
+    sessionStorage.setItem('ah_user_session', JSON.stringify({
+      email: data.user.email,
+      id: data.user.id,
+      type: 'supabase',
+      loginTime: new Date().toISOString()
+    }));
+  }
+
+  await logAudit('إنشاء حساب سحابي', 'الأمان والمستخدمين', data.user?.id || 'NEW', `إنشاء حساب سحابي جديد (${cleanEmail})`);
   return data;
 }
 
@@ -170,6 +224,7 @@ export async function supabaseSignOut() {
     }
   }
   sessionStorage.removeItem('ah_user_session');
+  localStorage.removeItem('ah_user_session');
   localStorage.removeItem('ah_local_auth_session');
   await logAudit('تسجيل خروج', 'الأمان والمستخدمين', 'AUTH', 'تم تسجيل الخروج من الجلسة');
   return true;
@@ -182,13 +237,15 @@ export async function getSupabaseCurrentUser() {
   const client = getSupabase();
   if (client) {
     try {
-      const { data } = await client.auth.getUser();
-      if (data?.user) return data.user;
+      const { data } = await client.auth.getSession();
+      if (data?.session?.user) {
+        return data.session.user;
+      }
     } catch (e) {}
   }
-  
+
   // Check local session
-  const sess = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_local_auth_session');
+  const sess = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session') || localStorage.getItem('ah_local_auth_session');
   if (sess) {
     try {
       return JSON.parse(sess);
