@@ -21,6 +21,7 @@
   <!-- System Core & Component Stylesheets -->
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/auth.css">
   <link rel="stylesheet" href="assets/css/print.css" media="all">
   
   <!-- Client-Side PDF Generation Engine (CDN) -->
@@ -34,66 +35,108 @@
 </head>
 <body>
 
-  <!-- Full Screen Secure Login Gate -->
-  <div id="app-login-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: rgba(10, 25, 47, 0.95); justify-content: center; align-items: center;">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-fade-in" style="width: 100%; max-width: 460px; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
-      <div class="p-6 text-white text-center relative" style="background: linear-gradient(135deg, #0A192F 0%, #0F294A 100%); padding: 1.5rem; text-align: center; color: white;">
-        <div class="w-20 h-20 bg-white/10 rounded-2xl p-2 mx-auto mb-3 flex items-center justify-center border border-white/20" style="width: 80px; height: 80px; margin: 0 auto 12px; background: rgba(255,255,255,0.1); border-radius: 1rem; display: flex; align-items: center; justify-content: center;">
-          <img id="login-gate-logo-img" src="assets/images/logo.svg" alt="أبو حذيفة للصرافة" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+<body>
+
+  <!-- ========================================================================= -->
+  <!-- EXCLUSIVE SUPABASE CLOUD AUTHENTICATION PORTAL (تسجيل الدخول السحابي المعتمد) -->
+  <!-- ========================================================================= -->
+  <div id="app-login-gate" class="auth-portal-backdrop" style="display: none;">
+    <div class="auth-portal-card">
+      
+      <!-- Card Header with Brand Logo & Typography -->
+      <div class="auth-portal-header">
+        <div class="auth-brand-logo-wrap">
+          <img id="login-gate-logo-img" src="assets/images/logo.svg" alt="شركة أبو حذيفة للصرافة والتحويلات" onerror="this.src='assets/images/logo.svg'" />
         </div>
-        <h2 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 4px;">شركة أبو حذيفة للصرافة والتحويلات</h2>
-        <p style="font-size: 0.8rem; color: #00B4D8;">نظام إدارة عقود العمل والعهد والمستندات</p>
+        <h1 class="auth-portal-title">شركة أبو حذيفة للصرافة والتحويلات</h1>
+        <p class="auth-portal-subtitle"><i class="fa-solid fa-cloud-bolt ml-1"></i> بوابة إدارة العقود والعهد والمستندات السحابية</p>
       </div>
 
-      <div style="padding: 1.5rem;">
-        <!-- Auth Tabs (Sign In / Sign Up) -->
-        <div class="flex gap-2 p-1 bg-slate-100 rounded-lg mb-4">
-          <button type="button" id="tab-gate-signin" class="btn btn-sm flex-1 bg-white shadow-sm font-bold text-primary" style="padding: 6px 12px; border-radius: 6px;">
-            <i class="fa-solid fa-right-to-bracket ml-1"></i> تسجيل الدخول
+      <div class="auth-portal-body">
+
+        <!-- Navigation Tabs: Sign In / Create Account -->
+        <div class="auth-tabs-nav">
+          <button type="button" id="tab-gate-signin" class="auth-tab-btn active">
+            <i class="fa-solid fa-right-to-bracket"></i> تسجيل الدخول
           </button>
-          <button type="button" id="tab-gate-signup" class="btn btn-sm flex-1 btn-ghost text-slate-600 font-bold" style="padding: 6px 12px; border-radius: 6px;">
-            <i class="fa-solid fa-user-plus ml-1"></i> إنشاء حساب سحابي
+          <button type="button" id="tab-gate-signup" class="auth-tab-btn">
+            <i class="fa-solid fa-user-shield"></i> تفعيل حساب جديد
           </button>
         </div>
 
-        <!-- Dynamic Alert Message Box -->
-        <div id="gate-auth-message-box" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 0.8rem; line-height: 1.5; margin-bottom: 1rem;"></div>
+        <!-- Feedback and Error Alert Container -->
+        <div id="gate-auth-message-box" class="auth-feedback-box">
+          <i class="fa-solid fa-circle-info mt-0.5 text-base"></i>
+          <div id="gate-auth-message-text" class="flex-1 font-medium"></div>
+        </div>
 
-        <!-- Login Form -->
-        <form id="gate-login-form" class="space-y-4">
-          <div id="gate-signup-name-group" class="form-group" style="display: none; margin-bottom: 1rem;">
-            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">الاسم الكامل / المسمى</label>
-            <input type="text" id="gate-fullname-input" class="form-control" placeholder="أبو حذيفة (المدير العام)" />
+        <!-- Main Cloud Authentication Form -->
+        <form id="gate-login-form" novalidate>
+          
+          <!-- Full Name (Sign Up Mode Only) -->
+          <div id="gate-signup-name-group" class="auth-input-group" style="display: none;">
+            <label class="auth-input-label">الاسم الكامل / الصفة الوظيفية <span class="text-rose-500">*</span></label>
+            <div class="auth-input-wrapper">
+              <input type="text" id="gate-fullname-input" class="auth-input-control" placeholder="أبو حذيفة (المدير العام)" />
+              <i class="fa-solid fa-user-tie auth-input-icon"></i>
+            </div>
           </div>
 
-          <div class="form-group" style="margin-bottom: 1rem;">
-            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">البريد الإلكتروني / اسم المستخدم</label>
-            <input type="text" id="gate-username-input" class="form-control ltr-text" placeholder="abuhdyfh@gmail.com أو admin" required />
+          <!-- Email Address (Cloud Auth Only) -->
+          <div class="auth-input-group">
+            <div class="flex justify-between items-center mb-1">
+              <label class="auth-input-label mb-0">البريد الإلكتروني المعتمد <span class="text-rose-500">*</span></label>
+              <span class="auth-quick-preset-tag" id="btn-quick-fill-email" title="كتابة بريد الإدارة تلقائياً">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> abuhdyfh@gmail.com
+              </span>
+            </div>
+            <div class="auth-input-wrapper">
+              <input type="email" id="gate-username-input" class="auth-input-control font-mono ltr-text" placeholder="abuhdyfh@gmail.com" required autocomplete="username" />
+              <i class="fa-solid fa-envelope auth-input-icon"></i>
+            </div>
           </div>
 
-          <div class="form-group" style="margin-bottom: 1.25rem;">
-            <label class="form-label" style="font-size: 0.8rem; font-weight: bold;">كلمة المرور</label>
-            <input type="password" id="gate-password-input" class="form-control ltr-text" placeholder="••••••••" required />
+          <!-- Password with Show/Hide Eye Toggle -->
+          <div class="auth-input-group">
+            <div class="flex justify-between items-center mb-1">
+              <label class="auth-input-label mb-0">كلمة المرور السحابية <span class="text-rose-500">*</span></label>
+              <button type="button" class="text-xs text-cyan-600 hover:text-cyan-700 font-semibold" id="btn-forgot-password">
+                نسيت كلمة المرور؟
+              </button>
+            </div>
+            <div class="auth-input-wrapper">
+              <input type="password" id="gate-password-input" class="auth-input-control font-mono ltr-text" placeholder="••••••••" required autocomplete="current-password" />
+              <i class="fa-solid fa-lock auth-input-icon"></i>
+              <button type="button" class="auth-toggle-pass-btn" id="btn-toggle-password-visibility" title="إظهار / إخفاء كلمة المرور">
+                <i class="fa-solid fa-eye" id="gate-eye-icon"></i>
+              </button>
+            </div>
           </div>
 
-          <button type="submit" class="btn btn-primary w-full py-2" id="btn-gate-submit-login" style="width: 100%; padding: 0.65rem;">
-            <i class="fa-solid fa-right-to-bracket ml-2"></i> <span id="gate-submit-btn-text">الدخول إلى النظام</span>
+          <!-- Submit Button -->
+          <button type="submit" class="auth-submit-btn" id="btn-gate-submit-login">
+            <i class="fa-solid fa-shield-halved ml-1"></i>
+            <span id="gate-submit-btn-text">تسجيل الدخول السحابي الآمن</span>
           </button>
-
-          <div class="flex justify-between items-center pt-2" style="margin-top: 1rem; border-top: 1px solid #f1f5f9;">
-            <button type="button" class="btn btn-xs btn-ghost text-primary" id="btn-gate-offline-bypass">
-              <i class="fa-solid fa-shield-halved ml-1"></i> دخول كمسؤول محلي (Admin)
-            </button>
-            <button type="button" class="btn btn-xs btn-ghost text-cyan" id="btn-gate-open-settings">
-              <i class="fa-solid fa-gear ml-1"></i> ضبط مفاتيح السحابة
-            </button>
-          </div>
         </form>
+
+        <!-- Inline Config Assistant (Shown when Supabase needs setup) -->
+        <div id="gate-cloud-setup-helper" style="display: none;" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+          <div class="font-bold mb-1"><i class="fa-solid fa-triangle-exclamation text-amber-600 ml-1"></i> تنبيه ربط السحابة:</div>
+          <div>لم يتم العثور على مفاتيح Supabase. يرجى إدخال Project URL و Anon Key في شاشة الإعدادات أو حقنها في أسرار GitHub.</div>
+          <button type="button" class="btn btn-xs btn-outline mt-2 w-full" id="btn-gate-open-settings">
+            <i class="fa-solid fa-gear ml-1"></i> فتح شاشة ضبط مفاتيح Supabase
+          </button>
+        </div>
+
       </div>
 
-      <div style="padding: 0.75rem; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 0.75rem; color: #64748b;">
-        <i class="fa-solid fa-cloud text-emerald ml-1"></i> متوافق مع مصادقة Supabase السحابية والتخزين المحلي
+      <!-- Footer Security & Privacy Badge -->
+      <div class="auth-footer-badge">
+        <span><i class="fa-solid fa-lock text-emerald-600 ml-1"></i> تشفير 256-bit SSL / Supabase Auth</span>
+        <span class="text-slate-400">v1.0.2</span>
       </div>
+
     </div>
   </div>
     </div>
