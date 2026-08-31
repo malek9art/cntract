@@ -9,7 +9,10 @@ import { generateId, readFileAsDataURL } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
-import { previewAndPrintDocument, buildContractDocumentHtml } from '../services/pdf-service.js';
+import { previewAndPrintDocument, buildContractDocumentHtml, buildCustodyHandoverVoucherHtml, buildCustodyReturnVoucherHtml } from '../services/pdf-service.js';
+import { openHandoverModal, openReturnModal } from './custodies.js';
+import { openContractModal } from './contracts.js';
+import { openVehicleInspectionModal } from './vehicles.js';
 
 let currentEditingEmployeeId = null;
 let currentViewingEmployeeId = null;
@@ -682,6 +685,24 @@ function setupEmployeeEvents() {
           await renderEmployeesList();
         }
       }
+    }
+
+    const handoverCustodyBtn = e.target.closest('[data-action="handover-custody-modal"]');
+    if (handoverCustodyBtn) {
+      const empId = handoverCustodyBtn.dataset.empId;
+      openHandoverModal(null, empId);
+    }
+
+    const returnCustodyBtn = e.target.closest('[data-action="return-custody-modal"]');
+    if (returnCustodyBtn) {
+      const custId = returnCustodyBtn.dataset.id;
+      openReturnModal(custId);
+    }
+
+    const inspectVehBtn = e.target.closest('[data-action="inspect-return-vehicle"]');
+    if (inspectVehBtn) {
+      const vehId = inspectVehBtn.dataset.id;
+      openVehicleInspectionModal(vehId, 'return');
     }
   });
 }

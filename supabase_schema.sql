@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
 CREATE TABLE IF NOT EXISTS public.contracts (
     id TEXT PRIMARY KEY,
     "contractNumber" TEXT UNIQUE NOT NULL,
-    "employeeId" TEXT REFERENCES public.employees(id) ON DELETE SET NULL,
+    "employeeId" TEXT,
     "employeeName" TEXT NOT NULL,
     "templateId" TEXT,
     "templateName" TEXT,
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS public.custodies (
     "branchId" TEXT,
     "branchName" TEXT,
     status TEXT DEFAULT 'available',
-    "employeeId" TEXT REFERENCES public.employees(id) ON DELETE SET NULL,
+    "employeeId" TEXT,
     "employeeName" TEXT,
     "handoverDate" DATE,
     "purchaseDate" DATE,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
     "branchId" TEXT,
     "branchName" TEXT,
     status TEXT DEFAULT 'available',
-    "assignedEmployeeId" TEXT REFERENCES public.employees(id) ON DELETE SET NULL,
+    "assignedEmployeeId" TEXT,
     "assignedEmployeeName" TEXT,
     "handoverDate" DATE,
     "bodyCondition" TEXT,
@@ -158,6 +158,79 @@ CREATE TABLE IF NOT EXISTS public.branches (
     "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- 7. جدول إعدادات الشركة وهوية الطرف الأول والشعار (Settings)
+CREATE TABLE IF NOT EXISTS public.settings (
+    id TEXT PRIMARY KEY,
+    "companyName" TEXT,
+    "companyNameEn" TEXT,
+    "firstPartyName" TEXT,
+    "firstPartyRepName" TEXT,
+    "firstPartyRepRole" TEXT,
+    "commercialRegister" TEXT,
+    "taxNumber" TEXT,
+    "centralBankLicense" TEXT,
+    headquarters TEXT,
+    phone TEXT,
+    "phoneSecondary" TEXT,
+    email TEXT,
+    "logoUrl" TEXT,
+    "stampUrl" TEXT,
+    "defaultProbationPeriod" TEXT,
+    "defaultWorkingHours" TEXT,
+    "defaultWorkingDays" TEXT,
+    "defaultNoticePeriod" TEXT,
+    "legalDisclaimer" TEXT,
+    "requireAuthOnStart" BOOLEAN DEFAULT true,
+    "supabaseConfig" JSONB DEFAULT '{}'::jsonb,
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. جدول قوالب العقود (Contract Templates)
+CREATE TABLE IF NOT EXISTS public.contract_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    description TEXT,
+    "clauseIds" JSONB DEFAULT '[]'::jsonb,
+    "defaultProbation" TEXT,
+    "defaultHours" TEXT,
+    "defaultDays" TEXT,
+    "defaultNotice" TEXT,
+    "isDefault" BOOLEAN DEFAULT false,
+    "isActive" BOOLEAN DEFAULT true
+);
+
+-- 9. جدول بنود العقود الـ 22 (Contract Clauses)
+CREATE TABLE IF NOT EXISTS public.contract_clauses (
+    id TEXT PRIMARY KEY,
+    "order" INTEGER,
+    "numberText" TEXT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    "isMandatory" BOOLEAN DEFAULT false,
+    "isActive" BOOLEAN DEFAULT true
+);
+
+-- 10. جدول مسيرات الرواتب (Salary Records)
+CREATE TABLE IF NOT EXISTS public.salary_records (
+    id TEXT PRIMARY KEY,
+    month TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "employeeName" TEXT NOT NULL,
+    "jobTitle" TEXT,
+    "branchName" TEXT,
+    "baseSalary" NUMERIC DEFAULT 0,
+    allowances NUMERIC DEFAULT 0,
+    deductions NUMERIC DEFAULT 0,
+    "netSalary" NUMERIC DEFAULT 0,
+    currency TEXT DEFAULT 'YER',
+    status TEXT DEFAULT 'paid',
+    "paymentDate" DATE,
+    "paymentMethod" TEXT,
+    notes TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- تفعيل سياسات الأمان للقراءة والكتابة (Enable RLS & Allow public access with anon key)
 ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contracts ENABLE ROW LEVEL SECURITY;
@@ -165,6 +238,10 @@ ALTER TABLE public.custodies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vouchers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contract_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contract_clauses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.salary_records ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow anon all on employees" ON public.employees FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all on contracts" ON public.contracts FOR ALL USING (true) WITH CHECK (true);
@@ -172,3 +249,7 @@ CREATE POLICY "Allow anon all on custodies" ON public.custodies FOR ALL USING (t
 CREATE POLICY "Allow anon all on vehicles" ON public.vehicles FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all on vouchers" ON public.vouchers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all on branches" ON public.branches FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon all on settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon all on contract_templates" ON public.contract_templates FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon all on contract_clauses" ON public.contract_clauses FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon all on salary_records" ON public.salary_records FOR ALL USING (true) WITH CHECK (true);

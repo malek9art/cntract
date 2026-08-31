@@ -206,7 +206,18 @@ export async function syncLocalToSupabase() {
     throw new Error('يجب ربط وتفعيل Supabase أولاً لتشغيل المزامنة السحابية.');
   }
 
-  const syncTables = ['employees', 'contracts', 'custodies', 'vehicles', 'vouchers', 'branches'];
+  const syncTables = [
+    'settings',
+    'branches',
+    'contract_clauses',
+    'contract_templates',
+    'employees',
+    'contracts',
+    'custodies',
+    'vehicles',
+    'vouchers',
+    'salary_records'
+  ];
   let totalSynced = 0;
 
   for (const tableName of syncTables) {
@@ -243,7 +254,18 @@ export async function syncSupabaseToLocal() {
     throw new Error('خدمة Supabase غير متصلة.');
   }
 
-  const syncTables = ['employees', 'contracts', 'custodies', 'vehicles', 'vouchers', 'branches'];
+  const syncTables = [
+    'settings',
+    'branches',
+    'contract_clauses',
+    'contract_templates',
+    'employees',
+    'contracts',
+    'custodies',
+    'vehicles',
+    'vouchers',
+    'salary_records'
+  ];
   let totalImported = 0;
 
   for (const tableName of syncTables) {

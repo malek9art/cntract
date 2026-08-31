@@ -2,13 +2,14 @@
  * Abu Hudhayfah Exchange & Transfers - Service Worker (Offline-First Cache)
  */
 
-const CACHE_NAME = 'abuhudhayfah-cntract-v1.0.1';
+const CACHE_NAME = 'abuhudhayfah-cntract-v1.0.2';
 
 const STATIC_ASSETS = [
   './',
   './index.html',
   './404.html',
   './manifest.json',
+  './env.js',
   './assets/css/main.css',
   './assets/css/components.css',
   './assets/css/print.css',
@@ -21,6 +22,7 @@ const STATIC_ASSETS = [
   './assets/js/data/constants.js',
   './assets/js/data/initial-data.js',
   './assets/js/services/pdf-service.js',
+  './assets/js/services/supabase-service.js',
   './assets/js/services/backup-service.js',
   './assets/js/services/template-service.js',
   './assets/js/services/vehicle-service.js',

@@ -73,9 +73,9 @@ export function renderDocumentFooter(settings, docNumber = '') {
 }
 
 export function renderSignatureBlock(employeeName, companyRep = null, includeStamp = true, settings = null) {
-  const stampUrl = 'assets/images/stamp.svg';
+  const stampUrl = settings?.stampUrl || 'assets/images/stamp.svg';
   const companyName = settings?.firstPartyName || settings?.companyName || 'شركة أبو حذيفة للصرافة والتحويلات';
-  const repName = settings?.firstPartyRepName || companyRep || 'أ. عبدالسلام الحداد (مدير الموارد البشرية)';
+  const repName = settings?.firstPartyRepName || companyRep || 'أبو حذيفة (المدير العام)';
   const repRole = settings?.firstPartyRepRole || 'المدير العام التنفيذي';
 
   return `
@@ -456,6 +456,10 @@ export function executeIsolatedPrint(htmlContent, title = 'مستند رسمي')
     <head>
       <meta charset="UTF-8">
       <title>${title}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
       <link rel="stylesheet" href="assets/css/main.css">
       <link rel="stylesheet" href="assets/css/components.css">
       <link rel="stylesheet" href="assets/css/print.css" media="all">
@@ -476,7 +480,7 @@ export function executeIsolatedPrint(htmlContent, title = 'مستند رسمي')
   setTimeout(() => {
     printFrame.contentWindow.focus();
     printFrame.contentWindow.print();
-  }, 250);
+  }, 350);
 }
 
 /**

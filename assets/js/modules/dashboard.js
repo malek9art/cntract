@@ -5,6 +5,7 @@
 import { db } from '../core/db.js';
 import { formatCurrency, formatDate, getDaysRemaining, getRelativeTimeArabic } from '../utils/formatters.js';
 import { previewAndPrintDocument, buildContractDocumentHtml } from '../services/pdf-service.js';
+import { openContractModal } from './contracts.js';
 import { showToast } from '../ui/toast.js';
 
 export async function initDashboard() {
@@ -252,6 +253,11 @@ function setupDashboardEvents() {
         const html = buildContractDocumentHtml(contract, employee, settings);
         await previewAndPrintDocument(`عقد عمل - ${contract.employeeName}`, html, `عقد_${contract.contractNumber}.pdf`, { module: 'العقود', recordId: contract.id });
       }
+    }
+
+    const editBtn = e.target.closest('[data-action="edit-contract"]');
+    if (editBtn) {
+      openContractModal(editBtn.dataset.id);
     }
   });
 }

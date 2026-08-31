@@ -27,7 +27,7 @@ export function applyBranding(settings) {
   const logoUrl = settings.logoUrl || 'assets/images/logo.svg';
   const stampUrl = settings.stampUrl || 'assets/images/stamp.svg';
 
-  document.querySelectorAll('.topbar-logo-img, .sidebar-logo-img').forEach(img => {
+  document.querySelectorAll('.topbar-logo-img, .sidebar-brand-logo, #login-gate-logo-img').forEach(img => {
     img.src = logoUrl;
   });
 
