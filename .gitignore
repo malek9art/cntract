@@ -1,0 +1,12 @@
+# Local build / editor artifacts
+node_modules/
+dist/
+.DS_Store
+Thumbs.db
+*.log
+
+# ⚠️ نسخ محلية من ملف البيئة قد تحتوي مفاتيح حقيقية - لا ترفعها أبداً
+env.local.js
+env.*.local.js
+.env
+.env.*

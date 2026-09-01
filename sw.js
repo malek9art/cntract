@@ -2,7 +2,7 @@
  * Abu Hudhayfah Exchange & Transfers - Service Worker (Offline-First Cache)
  */
 
-const CACHE_NAME = 'abuhudhayfah-cntract-v1.0.3';
+const CACHE_NAME = 'abuhudhayfah-cntract-v1.1.0';
 
 const STATIC_ASSETS = [
   './',
@@ -73,38 +73,77 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  // Try network first, fall back to cache; or cache first for static assets
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached version and update in background if online
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {
-          // Silent catch in offline mode
-        });
-        return cachedResponse;
-      }
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
 
-      // If not in cache, fetch from network and cache
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
+/**
+ * Requests that must NEVER be served from cache:
+ *  - env.js  : يحتوي مفاتيح الاتصال المحقونة عند النشر (نسخة قديمة = فشل تسجيل الدخول)
+ *  - التنقل  : لضمان الحصول على أحدث index.html بعد كل نشر
+ *  - Supabase / أي مصادقة : يجب أن تمر مباشرة إلى الشبكة
+ */
+function isEnvRequest(url) {
+  return url.pathname.endsWith('/env.js') || url.pathname === '/env.js';
+}
+
+function isCloudApi(url) {
+  return url.hostname.endsWith('.supabase.co') || url.hostname.endsWith('.supabase.in');
+}
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+
+  // تجاهل كل ما ليس GET (تسجيل الدخول، الرفع، المزامنة...)
+  if (request.method !== 'GET') return;
+
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch (e) {
+    return;
+  }
+
+  // نداءات Supabase تمر دائماً إلى الشبكة مباشرة بدون أي تخزين
+  if (isCloudApi(url)) return;
+
+  // Network-first: env.js + صفحات التنقل
+  if (isEnvRequest(url) || request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
-        }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      }).catch(() => {
-        // Fallback for HTML documents in case of network disconnect
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('./index.html');
-        }
-      });
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          if (request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          return new Response('', { status: 504, statusText: 'Offline' });
+        })
+    );
+    return;
+  }
+
+  // Stale-while-revalidate لبقية الأصول الثابتة
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      const networkFetch = fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || networkFetch;
     })
   );
 });

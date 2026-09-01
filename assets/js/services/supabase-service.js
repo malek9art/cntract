@@ -36,67 +36,176 @@ export function translateSupabaseAuthError(err) {
   return `خطأ المصادقة السحابية: ${msg}`;
 }
 
+/**
+ * Reads the Supabase configuration.
+ * المصدر الوحيد للمفاتيح هو أسرار GitHub المحقونة في window.ENV أثناء النشر.
+ * لا يوجد أي إدخال يدوي للمفاتيح داخل التطبيق ولا يتم تخزينها في المتصفح إطلاقاً.
+ */
+export function getEnvConfig() {
+  const env = window.ENV || {};
+  const url = String(env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+  const anonKey = String(env.SUPABASE_ANON_KEY || '').trim();
+  return { url, anonKey };
+}
+
+export function hasCloudKeys() {
+  const { url, anonKey } = getEnvConfig();
+  return !!url && !!anonKey;
+}
+
 export async function getSupabaseConfig() {
   const settings = await db.get('settings', 'company_settings');
   const stored = settings?.supabaseConfig || {};
-
-  // Check if injected via GitHub Repository Secrets in window.ENV
-  const envUrl = (window.ENV?.SUPABASE_URL || '').trim();
-  const envKey = (window.ENV?.SUPABASE_ANON_KEY || '').trim();
-
-  const url = (stored.url || envUrl || '').trim();
-  const anonKey = (stored.anonKey || envKey || '').trim();
-  const enabled = (stored.enabled !== false && !!url && !!anonKey) || (!!envUrl && !!envKey);
+  const { url, anonKey } = getEnvConfig();
 
   return {
-    enabled,
+    // مفعّل تلقائياً بمجرد توفر المفاتيح من أسرار GitHub
+    enabled: !!url && !!anonKey,
     url,
     anonKey,
+    source: 'github-secrets',
+    buildTime: window.ENV?.BUILD_TIME || null,
     autoSync: stored.autoSync || false,
     lastSyncDate: stored.lastSyncDate || null,
-    requireAuth: settings?.requireAuthOnStart ?? (window.ENV?.REQUIRE_AUTH_ON_START ?? true)
+    requireAuth: true
   };
 }
 
-export async function saveSupabaseConfig(config) {
-  const settings = await db.get('settings', 'company_settings') || {};
+/**
+ * Persists non-sensitive cloud preferences only (sync metadata).
+ * أي مفاتيح تمرر هنا يتم تجاهلها عمداً - المفاتيح تأتي من أسرار GitHub فقط.
+ */
+export async function saveSupabaseConfig(config = {}) {
+  const settings = await db.get('settings', 'company_settings') || { id: 'company_settings' };
+  const { url, anonKey, enabled, requireAuth, source, buildTime, ...safe } = config;
+
   settings.supabaseConfig = {
-    ...settings.supabaseConfig,
-    ...config
+    ...(settings.supabaseConfig || {}),
+    ...safe
   };
-  if (config.requireAuth !== undefined) {
-    settings.requireAuthOnStart = config.requireAuth;
-  }
+
+  // تنظيف أي مفاتيح قديمة كانت مخزّنة محلياً في الإصدارات السابقة
+  delete settings.supabaseConfig.url;
+  delete settings.supabaseConfig.anonKey;
+  delete settings.supabaseConfig.enabled;
+
   await db.put('settings', settings);
-  await initSupabaseClient();
   return settings.supabaseConfig;
 }
 
-export async function initSupabaseClient() {
-  const config = await getSupabaseConfig();
-  if (config.url && config.anonKey) {
+/**
+ * Waits for the Supabase CDN library to finish loading (it is loaded async by the browser).
+ * انتظار تحميل مكتبة Supabase من الـ CDN بدلاً من الفشل الفوري.
+ */
+export function waitForSupabaseLib(timeoutMs = 8000) {
+  return new Promise((resolve) => {
     if (window.supabase && typeof window.supabase.createClient === 'function') {
-      try {
-        supabaseClient = window.supabase.createClient(config.url, config.anonKey, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true
-          }
-        });
-        console.log('[Supabase] Client initialized successfully with:', config.url);
-        return supabaseClient;
-      } catch (err) {
-        console.warn('[Supabase] Failed to create client:', err);
-        supabaseClient = null;
-      }
-    } else {
-      console.log('[Supabase] Supabase JS library not loaded or offline. Operating in local IndexedDB mode.');
-      supabaseClient = null;
+      resolve(true);
+      return;
     }
-  } else {
-    supabaseClient = null;
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        clearInterval(timer);
+        resolve(true);
+      } else if (Date.now() - started > timeoutMs || !navigator.onLine) {
+        clearInterval(timer);
+        resolve(false);
+      }
+    }, 120);
+  });
+}
+
+/**
+ * Detailed cloud status used by the UI (login gate + settings badge).
+ */
+export function getCloudStatus() {
+  const { url, anonKey } = getEnvConfig();
+  if (!url || !anonKey) {
+    return {
+      state: 'missing-keys',
+      ok: false,
+      title: 'لم يتم حقن مفاتيح الاتصال السحابي',
+      detail: 'يتم حقن المفاتيح تلقائياً من أسرار GitHub عند النشر. يرجى إعادة تشغيل عملية النشر (Actions).'
+    };
   }
-  return null;
+  if (!navigator.onLine) {
+    return {
+      state: 'offline',
+      ok: false,
+      title: 'لا يوجد اتصال بالإنترنت',
+      detail: 'تسجيل الدخول يتطلب الاتصال بالإنترنت. تحقق من الشبكة ثم أعد المحاولة.'
+    };
+  }
+  if (!supabaseClient) {
+    return {
+      state: 'connecting',
+      ok: false,
+      title: 'جارٍ تجهيز الاتصال السحابي...',
+      detail: 'يتم الآن تحميل خدمة Supabase.'
+    };
+  }
+  return {
+    state: 'ready',
+    ok: true,
+    title: 'الاتصال بقاعدة البيانات السحابية جاهز',
+    detail: hostOf(url)
+  };
+}
+
+export function hostOf(url) {
+  try {
+    return new URL(url).host;
+  } catch (e) {
+    return url || '';
+  }
+}
+
+let initPromise = null;
+
+export async function initSupabaseClient(force = false) {
+  if (initPromise && !force) return initPromise;
+
+  initPromise = (async () => {
+    const { url, anonKey } = getEnvConfig();
+
+    if (!url || !anonKey) {
+      console.warn('[Supabase] No keys injected from GitHub Secrets - cloud features disabled.');
+      supabaseClient = null;
+      return null;
+    }
+
+    const libReady = await waitForSupabaseLib();
+    if (!libReady) {
+      console.warn('[Supabase] SDK not available (offline or CDN blocked).');
+      supabaseClient = null;
+      return null;
+    }
+
+    try {
+      supabaseClient = window.supabase.createClient(url, anonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          storageKey: 'ah-cntract-auth'
+        }
+      });
+      console.log('[Supabase] Client initialized ->', hostOf(url));
+      return supabaseClient;
+    } catch (err) {
+      console.error('[Supabase] Failed to create client:', err);
+      supabaseClient = null;
+      return null;
+    }
+  })();
+
+  return initPromise;
+}
+
+export async function ensureSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+  return initSupabaseClient(true);
 }
 
 export function getSupabase() {
@@ -108,36 +217,75 @@ export function isSupabaseConnected() {
 }
 
 /**
- * Test Supabase Connection with URL & Anon Key
+ * Verifies the injected cloud keys actually reach the Supabase project.
+ * فحص الاتصال باستخدام المفاتيح المحقونة من أسرار GitHub (بدون أي إدخال يدوي).
  */
-export async function testSupabaseConnection(url, anonKey) {
-  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-    throw new Error('مكتبة Supabase غير متوفرة أو أن الجهاز غير متصل بالإنترنت.');
+export async function testSupabaseConnection() {
+  const { url, anonKey } = getEnvConfig();
+  if (!url || !anonKey) {
+    throw new Error('لم يتم حقن مفاتيح Supabase من أسرار GitHub. أعد تشغيل عملية النشر (Actions) بعد إضافة SUPABASE_URL و SUPABASE_ANON_KEY.');
+  }
+  if (!navigator.onLine) {
+    throw new Error('لا يوجد اتصال بالإنترنت حالياً.');
+  }
+
+  const client = await ensureSupabaseClient();
+  if (!client) {
+    throw new Error('تعذر تحميل مكتبة Supabase. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.');
   }
 
   try {
-    const testClient = window.supabase.createClient(url.trim(), anonKey.trim());
-    const { data, error } = await testClient.auth.getSession();
-    if (error && error.status >= 500) {
-      throw error;
+    // نداء REST خفيف للتحقق من صحة الـ URL والمفتاح العام
+    const res = await fetch(`${url}/auth/v1/health`, {
+      headers: { apikey: anonKey }
+    });
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('المفتاح العام (Anon Key) مرفوض من المشروع. تأكد من قيمة السر SUPABASE_ANON_KEY.');
     }
-    return { success: true, message: 'تم الاتصال بقاعدة بيانات Supabase السحابية بنجاح! 🟢' };
+    if (res.status >= 500) {
+      throw new Error(`خادم Supabase أرجع خطأ (${res.status}).`);
+    }
+    return {
+      success: true,
+      message: `تم الاتصال بقاعدة بيانات Supabase بنجاح 🟢 (${hostOf(url)})`
+    };
   } catch (err) {
-    throw new Error(`فشل الاتصال بـ Supabase: ${err.message || err}`);
+    if (String(err.message || '').includes('Failed to fetch')) {
+      throw new Error(`تعذر الوصول إلى ${hostOf(url)}. تحقق من صحة السر SUPABASE_URL ومن اتصال الإنترنت.`);
+    }
+    throw err;
   }
 }
 
 /**
  * Supabase Secure Auth: Sign In with Email & Password
  */
-export async function supabaseSignIn(email, password) {
-  let client = getSupabase();
-  if (!client) {
-    client = await initSupabaseClient();
+export function cloudUnavailableMessage() {
+  const status = getCloudStatus();
+  if (status.state === 'missing-keys') {
+    return 'الاتصال السحابي غير مُهيّأ في هذه النسخة المنشورة. يرجى إعادة تشغيل عملية النشر من GitHub Actions ليتم حقن المفاتيح تلقائياً.';
   }
+  if (status.state === 'offline') {
+    return 'لا يوجد اتصال بالإنترنت. تسجيل الدخول يتطلب الاتصال بقاعدة البيانات السحابية.';
+  }
+  return 'تعذر الاتصال بخدمة Supabase حالياً. يرجى المحاولة مرة أخرى بعد قليل.';
+}
 
+function persistSession(user) {
+  const record = JSON.stringify({
+    email: user.email,
+    id: user.id,
+    type: 'supabase',
+    loginTime: new Date().toISOString()
+  });
+  sessionStorage.setItem('ah_user_session', record);
+  localStorage.setItem('ah_user_session', record);
+}
+
+export async function supabaseSignIn(email, password) {
+  const client = await ensureSupabaseClient();
   if (!client) {
-    throw new Error('خدمة Supabase غير مفعّلة أو لم يتم ضبط عنوان المشروع Project URL والمفتاح العام في الإعدادات.');
+    throw new Error(cloudUnavailableMessage());
   }
 
   const cleanEmail = email.trim().toLowerCase();
@@ -150,20 +298,7 @@ export async function supabaseSignIn(email, password) {
     throw new Error(translateSupabaseAuthError(error));
   }
 
-  // Save session record
-  sessionStorage.setItem('ah_user_session', JSON.stringify({
-    email: data.user.email,
-    id: data.user.id,
-    type: 'supabase',
-    loginTime: new Date().toISOString()
-  }));
-
-  localStorage.setItem('ah_user_session', JSON.stringify({
-    email: data.user.email,
-    id: data.user.id,
-    type: 'supabase',
-    loginTime: new Date().toISOString()
-  }));
+  persistSession(data.user);
 
   await logAudit('تسجيل دخول سحابي', 'الأمان والمستخدمين', data.user.id, `تسجيل دخول ناجح للمستخدم عبر Supabase (${cleanEmail})`, cleanEmail);
   return data;
@@ -173,13 +308,9 @@ export async function supabaseSignIn(email, password) {
  * Supabase Secure Auth: Sign Up New Operator Account
  */
 export async function supabaseSignUp(email, password, metadata = {}) {
-  let client = getSupabase();
+  const client = await ensureSupabaseClient();
   if (!client) {
-    client = await initSupabaseClient();
-  }
-
-  if (!client) {
-    throw new Error('خدمة Supabase غير مهيأة. يرجى إدخال Project URL و Anon Key في الإعدادات أولاً.');
+    throw new Error(cloudUnavailableMessage());
   }
 
   const cleanEmail = email.trim().toLowerCase();
@@ -198,13 +329,8 @@ export async function supabaseSignUp(email, password, metadata = {}) {
     throw new Error(translateSupabaseAuthError(error));
   }
 
-  if (data.session) {
-    sessionStorage.setItem('ah_user_session', JSON.stringify({
-      email: data.user.email,
-      id: data.user.id,
-      type: 'supabase',
-      loginTime: new Date().toISOString()
-    }));
+  if (data.session && data.user) {
+    persistSession(data.user);
   }
 
   await logAudit('إنشاء حساب سحابي', 'الأمان والمستخدمين', data.user?.id || 'NEW', `إنشاء حساب سحابي جديد (${cleanEmail})`);
@@ -231,26 +357,43 @@ export async function supabaseSignOut() {
 }
 
 /**
- * Get Current Logged In User
+ * Resolves the current authenticated user.
+ * التحقق الحقيقي يتم دائماً من جلسة Supabase؛ الجلسة المحفوظة محلياً
+ * تُستخدم فقط كوضع تصفح مؤقت أثناء انقطاع الإنترنت.
  */
 export async function getSupabaseCurrentUser() {
-  const client = getSupabase();
+  const client = await ensureSupabaseClient();
+
   if (client) {
     try {
-      const { data } = await client.auth.getSession();
-      if (data?.session?.user) {
+      const { data, error } = await client.auth.getSession();
+      if (!error && data?.session?.user) {
+        persistSession(data.session.user);
         return data.session.user;
       }
-    } catch (e) {}
+      // لا توجد جلسة سحابية صالحة -> تنظيف أي بقايا جلسة محلية قديمة
+      if (navigator.onLine) {
+        sessionStorage.removeItem('ah_user_session');
+        localStorage.removeItem('ah_user_session');
+        localStorage.removeItem('ah_local_auth_session');
+        return null;
+      }
+    } catch (e) {
+      console.warn('[Supabase] getSession failed:', e);
+    }
   }
 
-  // Check local session
-  const sess = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session') || localStorage.getItem('ah_local_auth_session');
-  if (sess) {
-    try {
-      return JSON.parse(sess);
-    } catch (e) {}
+  // وضع عدم الاتصال: السماح بمتابعة العمل محلياً إذا كان هناك جلسة سابقة
+  if (!navigator.onLine) {
+    const sess = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session');
+    if (sess) {
+      try {
+        const parsed = JSON.parse(sess);
+        return { ...parsed, offline: true };
+      } catch (e) {}
+    }
   }
+
   return null;
 }
 
@@ -258,9 +401,9 @@ export async function getSupabaseCurrentUser() {
  * Cloud Sync Engine: Push Local IndexedDB Data to Supabase
  */
 export async function syncLocalToSupabase() {
-  const client = getSupabase();
+  const client = await ensureSupabaseClient();
   if (!client) {
-    throw new Error('يجب ربط وتفعيل Supabase أولاً لتشغيل المزامنة السحابية.');
+    throw new Error(cloudUnavailableMessage());
   }
 
   const syncTables = [
@@ -306,13 +449,13 @@ export async function syncLocalToSupabase() {
  * Cloud Sync Engine: Pull Remote Data from Supabase into IndexedDB
  */
 export async function syncSupabaseToLocal() {
-  const client = getSupabase();
+  const client = await ensureSupabaseClient();
   if (!client) {
-    throw new Error('خدمة Supabase غير متصلة.');
+    throw new Error(cloudUnavailableMessage());
   }
 
+  // ملاحظة: جدول settings مستثنى من السحب لتفادي الكتابة فوق هوية الشركة المحلية
   const syncTables = [
-    'settings',
     'branches',
     'contract_clauses',
     'contract_templates',
@@ -324,6 +467,7 @@ export async function syncSupabaseToLocal() {
     'salary_records'
   ];
   let totalImported = 0;
+  const failedTables = [];
 
   for (const tableName of syncTables) {
     try {
@@ -333,6 +477,7 @@ export async function syncSupabaseToLocal() {
         totalImported += data.length;
       }
     } catch (e) {
+      failedTables.push(tableName);
       console.warn(`[Supabase Pull] Skipped table ${tableName}:`, e);
     }
   }
@@ -342,5 +487,5 @@ export async function syncSupabaseToLocal() {
   await saveSupabaseConfig(config);
 
   await logAudit('استيراد سحابي', 'النسخ الاحتياطي', 'ALL', `تم استيراد ${totalImported} سجل من قاعدة بيانات Supabase`);
-  return { success: true, count: totalImported };
+  return { success: true, count: totalImported, failedTables };
 }

@@ -7,11 +7,12 @@ import { formatDate } from '../utils/formatters.js';
 import { exportDatabaseBackup, importDatabaseBackup } from '../services/backup-service.js';
 import {
   getSupabaseConfig,
-  saveSupabaseConfig,
   testSupabaseConnection,
   syncLocalToSupabase,
   syncSupabaseToLocal,
-  isSupabaseConnected
+  isSupabaseConnected,
+  getCloudStatus,
+  hostOf
 } from '../services/supabase-service.js';
 import { DEMO_SAMPLE_DATA } from '../data/initial-data.js';
 import { logAudit } from '../core/audit.js';
@@ -87,12 +88,38 @@ export async function loadCompanySettingsForm() {
 
 export async function loadSupabaseSettingsForm() {
   const config = await getSupabaseConfig();
-  const form = document.getElementById('supabase-config-form');
-  if (!form) return;
+  const status = getCloudStatus();
 
-  form.elements['supabaseEnabled'].checked = !!config.enabled;
-  form.elements['supabaseUrl'].value = config.url || '';
-  form.elements['supabaseAnonKey'].value = config.anonKey || '';
+  const urlEl = document.getElementById('cloud-secret-url');
+  const keyEl = document.getElementById('cloud-secret-key');
+  const buildEl = document.getElementById('cloud-secret-build');
+
+  if (urlEl) {
+    urlEl.textContent = config.url ? hostOf(config.url) : 'غير مُحقن';
+    urlEl.classList.toggle('is-missing', !config.url);
+  }
+  if (keyEl) {
+    keyEl.textContent = config.anonKey
+      ? `${config.anonKey.slice(0, 6)}••••••••••••${config.anonKey.slice(-4)}`
+      : 'غير مُحقن';
+    keyEl.classList.toggle('is-missing', !config.anonKey);
+  }
+  if (buildEl) {
+    buildEl.textContent = config.buildTime ? formatDate(config.buildTime) : 'نسخة محلية (بدون نشر)';
+  }
+
+  const noteEl = document.getElementById('cloud-secrets-note');
+  if (noteEl) {
+    if (!config.url || !config.anonKey) {
+      noteEl.classList.add('is-warning');
+      noteEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation ml-1"></i>
+        لم يتم حقن المفاتيح في هذه النسخة. أضف السرّين
+        <code class="ltr-text">SUPABASE_URL</code> و <code class="ltr-text">SUPABASE_ANON_KEY</code>
+        في <strong>Settings ← Secrets and variables ← Actions</strong> ثم أعد تشغيل النشر من تبويب Actions.`;
+    } else {
+      noteEl.classList.remove('is-warning');
+    }
+  }
 
   const syncDateEl = document.getElementById('supabase-last-sync-date');
   if (syncDateEl) {
@@ -101,17 +128,29 @@ export async function loadSupabaseSettingsForm() {
 
   const badgeEl = document.getElementById('supabase-status-badge');
   if (badgeEl) {
-    if (config.enabled && isSupabaseConnected()) {
+    if (status.ok && isSupabaseConnected()) {
       badgeEl.className = 'badge badge-emerald text-xs';
       badgeEl.innerHTML = `<i class="fa-solid fa-cloud-bolt ml-1"></i> متصل بالسحابة`;
-    } else if (config.enabled) {
+    } else if (status.state === 'offline') {
       badgeEl.className = 'badge badge-amber text-xs';
-      badgeEl.innerHTML = `<i class="fa-solid fa-cloud text-xs ml-1"></i> مهيأ (غير متصل)`;
+      badgeEl.innerHTML = `<i class="fa-solid fa-plane text-xs ml-1"></i> غير متصل بالإنترنت`;
+    } else if (status.state === 'missing-keys') {
+      badgeEl.className = 'badge badge-rose text-xs';
+      badgeEl.innerHTML = `<i class="fa-solid fa-key text-xs ml-1"></i> مفاتيح غير محقونة`;
     } else {
       badgeEl.className = 'badge badge-slate text-xs';
-      badgeEl.innerHTML = `<i class="fa-solid fa-hard-drive text-xs ml-1"></i> وضع محلي فقط`;
+      badgeEl.innerHTML = `<i class="fa-solid fa-cloud text-xs ml-1"></i> جارٍ التهيئة`;
     }
   }
+
+  // تعطيل أزرار المزامنة عند غياب الاتصال السحابي
+  ['btn-sync-to-supabase', 'btn-pull-from-supabase'].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.disabled = !isSupabaseConnected();
+      btn.title = btn.disabled ? 'المزامنة تتطلب اتصالاً سحابياً فعّالاً' : '';
+    }
+  });
 }
 
 export async function saveCompanySettings(e) {
@@ -247,7 +286,13 @@ export async function saveBranchFromForm(e) {
   await renderBranchesList();
 }
 
+let settingsEventsBound = false;
+
 function setupSettingsEvents() {
+  // منع تكرار ربط المستمعات في كل مرة يُفتح فيها قسم الإعدادات
+  if (settingsEventsBound) return;
+  settingsEventsBound = true;
+
   const companyForm = document.getElementById('company-settings-form');
   if (companyForm) companyForm.addEventListener('submit', saveCompanySettings);
 
@@ -305,42 +350,22 @@ function setupSettingsEvents() {
     });
   }
 
-  // Supabase Form & Actions
-  const supabaseForm = document.getElementById('supabase-config-form');
-  if (supabaseForm) {
-    supabaseForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const enabled = supabaseForm.elements['supabaseEnabled'].checked;
-      const url = supabaseForm.elements['supabaseUrl'].value.trim();
-      const anonKey = supabaseForm.elements['supabaseAnonKey'].value.trim();
-
-      await saveSupabaseConfig({ enabled, url, anonKey });
-      showToast('تم حفظ إعدادات ربط Supabase السحابية.');
-      await loadSupabaseSettingsForm();
-    });
-  }
-
+  // Supabase cloud actions (keys are injected from GitHub Secrets - no manual input)
   const testSupabaseBtn = document.getElementById('btn-test-supabase');
   if (testSupabaseBtn) {
     testSupabaseBtn.addEventListener('click', async () => {
-      const url = document.getElementById('supabase-url-input')?.value.trim();
-      const anonKey = document.getElementById('supabase-anon-key-input')?.value.trim();
-
-      if (!url || !anonKey) {
-        showToast('يرجى إدخال عنوان المشروع Project URL والمفتاح العام Anon Key أولاً.', 'warning');
-        return;
-      }
-
+      const original = testSupabaseBtn.innerHTML;
       try {
         testSupabaseBtn.disabled = true;
-        testSupabaseBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري الاتصال...';
-        const res = await testSupabaseConnection(url, anonKey);
+        testSupabaseBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري الفحص...';
+        const res = await testSupabaseConnection();
         showToast(res.message, 'success');
       } catch (err) {
-        showToast(err.message, 'error');
+        showToast(err.message, 'error', 6000);
       } finally {
         testSupabaseBtn.disabled = false;
-        testSupabaseBtn.innerHTML = '<i class="fa-solid fa-plug ml-1"></i> اختبار الاتصال بـ Supabase';
+        testSupabaseBtn.innerHTML = original;
+        await loadSupabaseSettingsForm();
       }
     });
   }

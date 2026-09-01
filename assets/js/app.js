@@ -23,13 +23,17 @@ import { initAuditLog, renderAuditLogList } from './modules/audit-log.js';
 import { initSettings, applyBranding } from './modules/settings.js';
 import {
   initSupabaseClient,
+  ensureSupabaseClient,
   supabaseSignIn,
   supabaseSignUp,
   supabaseSignOut,
   getSupabaseCurrentUser,
   isSupabaseConnected,
   syncSupabaseToLocal,
-  getSupabase
+  getSupabase,
+  getCloudStatus,
+  hasCloudKeys,
+  cloudUnavailableMessage
 } from './services/supabase-service.js';
 
 class App {
@@ -37,6 +41,7 @@ class App {
     this.currentView = 'dashboard';
     this.isAuthenticated = false;
     this.gateMode = 'signin'; // 'signin' or 'signup'
+    this.gateEventsBound = false;
   }
 
   async start() {
@@ -64,6 +69,12 @@ class App {
       // Enforce exclusive cloud authentication gate
       await this.checkAuthenticationGate();
 
+      // تنظيف روابط المصادقة (#access_token / type=recovery) قبل التوجيه
+      const rawHash = window.location.hash || '';
+      if (/access_token=|error_code=|type=recovery/.test(rawHash)) {
+        history.replaceState(null, '', window.location.pathname + window.location.search + '#dashboard');
+      }
+
       // Navigate to initial hash or dashboard
       const hash = window.location.hash.replace('#', '') || 'dashboard';
       await this.navigate(hash);
@@ -75,25 +86,132 @@ class App {
   }
 
   async checkAuthenticationGate() {
-    const gate = document.getElementById('app-login-gate');
-    const currentUser = await getSupabaseCurrentUser();
-    const localSession = sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session');
+    // رابط إعادة تعيين كلمة المرور القادم من البريد
+    if (this.pendingRecovery) {
+      this.showGate();
+      this.setupLoginGateEvents();
+      this.enterRecoveryMode();
+      await this.refreshGateCloudStatus();
+      return false;
+    }
 
-    if (currentUser || localSession) {
+    const currentUser = await getSupabaseCurrentUser();
+
+    if (currentUser) {
       this.isAuthenticated = true;
-      if (gate) gate.style.display = 'none';
-      const userDisplayName = currentUser?.email || (localSession ? JSON.parse(localSession).email || JSON.parse(localSession).name : 'abuhdyfh@gmail.com');
-      this.updateUserBadge(userDisplayName);
+      this.hideGate();
+      this.updateUserBadge(currentUser.email || currentUser.name || '');
+      if (currentUser.offline) {
+        showToast('تم فتح النظام في وضع عدم الاتصال باستخدام آخر جلسة محفوظة.', 'info', 4000);
+      }
+      this.watchAuthState();
       return true;
     }
 
-    // Show Exclusive Cloud Login Gate
-    if (gate) {
-      gate.style.display = 'flex';
-    }
     this.isAuthenticated = false;
+    this.showGate();
     this.setupLoginGateEvents();
+    await this.refreshGateCloudStatus();
+    this.watchAuthState();
     return false;
+  }
+
+  showGate() {
+    const gate = document.getElementById('app-login-gate');
+    if (!gate) return;
+    gate.style.display = 'flex';
+    document.body.classList.add('auth-locked');
+    setTimeout(() => document.getElementById('gate-username-input')?.focus(), 150);
+  }
+
+  enterRecoveryMode() {
+    this.pendingRecovery = false;
+    document.getElementById('gate-login-form')?.style.setProperty('display', 'none');
+    document.getElementById('gate-recovery-form')?.style.setProperty('display', 'block');
+    document.querySelector('.auth-tabs-nav')?.style.setProperty('display', 'none');
+    setTimeout(() => document.getElementById('gate-new-password')?.focus(), 150);
+  }
+
+  exitRecoveryMode() {
+    document.getElementById('gate-recovery-form')?.style.setProperty('display', 'none');
+    document.getElementById('gate-login-form')?.style.setProperty('display', 'block');
+    document.querySelector('.auth-tabs-nav')?.style.setProperty('display', 'flex');
+  }
+
+  hideGate() {
+    const gate = document.getElementById('app-login-gate');
+    if (gate) gate.style.display = 'none';
+    document.body.classList.remove('auth-locked');
+  }
+
+  /**
+   * Keeps the UI honest when the Supabase session expires or is revoked.
+   */
+  watchAuthState() {
+    if (this.authWatcherBound) return;
+    const client = getSupabase();
+    if (!client?.auth?.onAuthStateChange) return;
+    this.authWatcherBound = true;
+
+    client.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        this.showGate();
+        this.setupLoginGateEvents();
+        this.enterRecoveryMode();
+        return;
+      }
+      if (event === 'SIGNED_OUT' || (!session && event === 'TOKEN_REFRESHED')) {
+        this.isAuthenticated = false;
+        sessionStorage.removeItem('ah_user_session');
+        localStorage.removeItem('ah_user_session');
+        this.showGate();
+        this.setupLoginGateEvents();
+        this.refreshGateCloudStatus();
+      } else if (session?.user) {
+        this.isAuthenticated = true;
+        this.updateUserBadge(session.user.email);
+      }
+    });
+  }
+
+  /**
+   * Renders the read-only cloud connection strip on the login screen.
+   * لا توجد أي تعليمات لإدخال المفاتيح - المفاتيح تأتي من أسرار GitHub فقط.
+   */
+  async refreshGateCloudStatus() {
+    const box = document.getElementById('gate-cloud-status');
+    const titleEl = document.getElementById('gate-cloud-status-title');
+    const detailEl = document.getElementById('gate-cloud-status-detail');
+    const retryBtn = document.getElementById('btn-gate-retry-cloud');
+    const submitBtn = document.getElementById('btn-gate-submit-login');
+    if (!box) return;
+
+    const paint = (cls, title, detail, showRetry) => {
+      box.className = `auth-cloud-status ${cls}`;
+      if (titleEl) titleEl.textContent = title;
+      if (detailEl) detailEl.textContent = detail;
+      if (retryBtn) retryBtn.style.display = showRetry ? 'inline-flex' : 'none';
+    };
+
+    paint('is-connecting', 'جارٍ التحقق من الاتصال السحابي...', 'يرجى الانتظار لحظة', false);
+    if (submitBtn) submitBtn.disabled = true;
+
+    await ensureSupabaseClient();
+    const status = getCloudStatus();
+
+    if (status.ok) {
+      paint('is-ready', 'الاتصال بقاعدة البيانات السحابية جاهز', status.detail, false);
+      if (submitBtn) submitBtn.disabled = false;
+    } else if (status.state === 'offline') {
+      paint('is-offline', 'لا يوجد اتصال بالإنترنت', 'تسجيل الدخول يتطلب اتصالاً بالشبكة', true);
+      if (submitBtn) submitBtn.disabled = true;
+    } else if (status.state === 'missing-keys') {
+      paint('is-error', 'الخدمة السحابية غير مُهيّأة في هذه النسخة', 'يرجى مراجعة مسؤول النظام لإعادة نشر التطبيق', true);
+      if (submitBtn) submitBtn.disabled = true;
+    } else {
+      paint('is-error', 'تعذر تجهيز الاتصال السحابي', 'اضغط زر التحديث لإعادة المحاولة', true);
+      if (submitBtn) submitBtn.disabled = true;
+    }
   }
 
   updateUserBadge(nameOrEmail) {
@@ -104,26 +222,24 @@ class App {
   }
 
   setupLoginGateEvents() {
+    // ربط المستمعات مرة واحدة فقط لتفادي تكرار عمليات تسجيل الدخول
+    if (this.gateEventsBound) return;
+    this.gateEventsBound = true;
+
     const gate = document.getElementById('app-login-gate');
     const form = document.getElementById('gate-login-form');
-    const openSettingsBtn = document.getElementById('btn-gate-open-settings');
     const quickFillBtn = document.getElementById('btn-quick-fill-email');
     const togglePassBtn = document.getElementById('btn-toggle-password-visibility');
     const forgotPassBtn = document.getElementById('btn-forgot-password');
+    const retryCloudBtn = document.getElementById('btn-gate-retry-cloud');
     const tabSignIn = document.getElementById('tab-gate-signin');
     const tabSignUp = document.getElementById('tab-gate-signup');
     const nameGroup = document.getElementById('gate-signup-name-group');
     const submitBtnText = document.getElementById('gate-submit-btn-text');
     const msgBox = document.getElementById('gate-auth-message-box');
     const msgText = document.getElementById('gate-auth-message-text');
-    const helperBox = document.getElementById('gate-cloud-setup-helper');
-
-    // Show setup helper if Supabase client not ready
-    if (!isSupabaseConnected() && helperBox) {
-      helperBox.style.display = 'block';
-    } else if (helperBox) {
-      helperBox.style.display = 'none';
-    }
+    const passInput = document.getElementById('gate-password-input');
+    const capsHint = document.getElementById('gate-capslock-hint');
 
     const showGateMessage = (msg, isError = true) => {
       if (!msgBox || !msgText) return;
@@ -139,14 +255,45 @@ class App {
       }
     };
 
+    // إعادة محاولة الاتصال السحابي
+    if (retryCloudBtn) {
+      retryCloudBtn.addEventListener('click', async () => {
+        retryCloudBtn.classList.add('is-spinning');
+        clearGateMessage();
+        await initSupabaseClient(true);
+        await this.refreshGateCloudStatus();
+        retryCloudBtn.classList.remove('is-spinning');
+      });
+    }
+
+    // تحديث الحالة تلقائياً عند عودة الشبكة
+    window.addEventListener('online', () => {
+      if (!this.isAuthenticated) {
+        initSupabaseClient(true).then(() => this.refreshGateCloudStatus());
+      }
+    });
+    window.addEventListener('offline', () => {
+      if (!this.isAuthenticated) this.refreshGateCloudStatus();
+    });
+
+    // تنبيه Caps Lock
+    if (passInput && capsHint) {
+      const checkCaps = (e) => {
+        const on = e.getModifierState && e.getModifierState('CapsLock');
+        capsHint.style.display = on ? 'block' : 'none';
+      };
+      passInput.addEventListener('keyup', checkCaps);
+      passInput.addEventListener('keydown', checkCaps);
+      passInput.addEventListener('blur', () => { capsHint.style.display = 'none'; });
+    }
+
     // Quick Fill abuhdyfh@gmail.com
     if (quickFillBtn) {
       quickFillBtn.addEventListener('click', () => {
         const usernameInput = document.getElementById('gate-username-input');
         if (usernameInput) {
           usernameInput.value = 'abuhdyfh@gmail.com';
-          usernameInput.focus();
-          showToast('تم تعيين البريد المعتمد: abuhdyfh@gmail.com', 'info');
+          document.getElementById('gate-password-input')?.focus();
         }
       });
     }
@@ -154,7 +301,6 @@ class App {
     // Toggle Password Visibility Eye Icon
     if (togglePassBtn) {
       togglePassBtn.addEventListener('click', () => {
-        const passInput = document.getElementById('gate-password-input');
         const eyeIcon = document.getElementById('gate-eye-icon');
         if (passInput && eyeIcon) {
           const isPassword = passInput.type === 'password';
@@ -169,20 +315,23 @@ class App {
       forgotPassBtn.addEventListener('click', async () => {
         const email = (document.getElementById('gate-username-input')?.value || '').trim().toLowerCase();
         if (!email || !email.includes('@')) {
-          showGateMessage('يرجى كتابة بريدك الإلكتروني (مثل abuhdyfh@gmail.com) في خانة البريد أولاً ثم الضغط على "نسيت كلمة المرور".');
+          showGateMessage('يرجى كتابة بريدك الإلكتروني في خانة البريد أولاً ثم الضغط على "نسيت كلمة المرور".');
+          document.getElementById('gate-username-input')?.focus();
           return;
         }
 
-        const client = getSupabase();
+        const client = await ensureSupabaseClient();
         if (!client) {
-          showGateMessage('خدمة Supabase غير متصلة. يرجى مراجعة إعدادات الربط السحابي.');
+          showGateMessage(cloudUnavailableMessage());
           return;
         }
 
         try {
           forgotPassBtn.disabled = true;
           forgotPassBtn.textContent = 'جاري الإرسال...';
-          const { error } = await client.auth.resetPasswordForEmail(email);
+          const { error } = await client.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + window.location.pathname
+          });
           if (error) throw error;
           showGateMessage(`تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك: <strong>${email}</strong>. يرجى مراجعة صندوق الوارد.`, false);
         } catch (err) {
@@ -194,7 +343,7 @@ class App {
       });
     }
 
-    // Switch to Sign In Tab
+    // Tabs
     if (tabSignIn && tabSignUp) {
       tabSignIn.addEventListener('click', () => {
         this.gateMode = 'signin';
@@ -205,7 +354,6 @@ class App {
         clearGateMessage();
       });
 
-      // Switch to Sign Up Tab
       tabSignUp.addEventListener('click', () => {
         this.gateMode = 'signup';
         tabSignUp.classList.add('active');
@@ -216,12 +364,52 @@ class App {
       });
     }
 
-    // Shortcut to Open Settings and Configure Cloud
-    if (openSettingsBtn) {
-      openSettingsBtn.addEventListener('click', () => {
-        if (gate) gate.style.display = 'none';
-        window.location.hash = '#settings';
-        showToast('يمكنك ضبط مفاتيح Supabase من قسم الربط السحابي في الإعدادات.', 'info');
+    // Save new password (recovery flow)
+    const recoveryForm = document.getElementById('gate-recovery-form');
+    if (recoveryForm) {
+      recoveryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearGateMessage();
+        const pass1 = document.getElementById('gate-new-password')?.value || '';
+        const pass2 = document.getElementById('gate-confirm-password')?.value || '';
+        const saveBtn = document.getElementById('btn-gate-save-password');
+
+        if (pass1.length < 6) {
+          showGateMessage('كلمة المرور الجديدة يجب أن تتكون من 6 خانات أو أكثر.');
+          return;
+        }
+        if (pass1 !== pass2) {
+          showGateMessage('كلمتا المرور غير متطابقتين.');
+          return;
+        }
+
+        const client = await ensureSupabaseClient();
+        if (!client) {
+          showGateMessage(cloudUnavailableMessage());
+          return;
+        }
+
+        try {
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري الحفظ...';
+          }
+          const { data, error } = await client.auth.updateUser({ password: pass1 });
+          if (error) throw error;
+          this.exitRecoveryMode();
+          showGateMessage('تم تحديث كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول.', false);
+          if (data?.user?.email) {
+            const uInput = document.getElementById('gate-username-input');
+            if (uInput) uInput.value = data.user.email;
+          }
+        } catch (err) {
+          showGateMessage(`تعذر تحديث كلمة المرور: ${err.message}`);
+        } finally {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa-solid fa-key ml-1"></i> <span>حفظ كلمة المرور الجديدة</span>';
+          }
+        }
       });
     }
 
@@ -236,15 +424,29 @@ class App {
         const fullName = (document.getElementById('gate-fullname-input')?.value || '').trim();
         const btn = document.getElementById('btn-gate-submit-login');
 
-        if (!username || !username.includes('@')) {
-          showGateMessage('يرجى إدخال بريد إلكتروني صحيح وموثق (مثل: abuhdyfh@gmail.com).');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(username)) {
+          showGateMessage('يرجى إدخال بريد إلكتروني صحيح.');
+          document.getElementById('gate-username-input')?.focus();
           return;
         }
 
         if (!password || password.length < 6) {
           showGateMessage('كلمة المرور يجب أن تتكون من 6 خانات أو أكثر.');
+          document.getElementById('gate-password-input')?.focus();
           return;
         }
+
+        if (!hasCloudKeys()) {
+          showGateMessage(cloudUnavailableMessage());
+          return;
+        }
+
+        const restoreBtn = () => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-shield-halved ml-1"></i> <span id="gate-submit-btn-text">${this.gateMode === 'signup' ? 'تفعيل وإنشاء الحساب السحابي' : 'تسجيل الدخول السحابي الآمن'}</span>`;
+          }
+        };
 
         try {
           if (btn) {
@@ -252,55 +454,51 @@ class App {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري التحقق السحابي...';
           }
 
-          // 1. SIGN UP MODE (تفعيل حساب جديد في Supabase)
+          // 1. SIGN UP MODE
           if (this.gateMode === 'signup') {
-            try {
-              const signUpRes = await supabaseSignUp(username, password, { fullName: fullName || 'أبو حذيفة (المدير العام)' });
-              
-              if (signUpRes.session) {
-                this.isAuthenticated = true;
-                if (gate) gate.style.display = 'none';
-                this.updateUserBadge(username);
-                showToast(`تم تفعيل الحساب وتسجيل الدخول بنجاح (${username}) 🎉`);
-              } else {
-                showGateMessage(`تم إنشاء الحساب بنجاح لـ <strong>${username}</strong>! إذا كان خيار تأكيد البريد مفعلاً في Supabase، يرجى مراجعة صندوق بريدك لتأكيد الرابط ثم تسجيل الدخول.`, false);
-                if (tabSignIn) tabSignIn.click();
-              }
-              return;
-            } catch (err) {
-              showGateMessage(err.message || 'فشل إنشاء الحساب السحابي.');
-              return;
+            const signUpRes = await supabaseSignUp(username, password, { fullName: fullName || 'أبو حذيفة (المدير العام)' });
+
+            if (signUpRes.session) {
+              this.onAuthSuccess(username);
+            } else {
+              showGateMessage(`تم إنشاء الحساب بنجاح لـ <strong>${username}</strong>! إذا كان تأكيد البريد مفعلاً، يرجى مراجعة صندوق بريدك لتأكيد الرابط ثم تسجيل الدخول.`, false);
+              if (tabSignIn) tabSignIn.click();
             }
-          }
-
-          // 2. SIGN IN MODE (تسجيل الدخول السحابي الحصري)
-          try {
-            const authRes = await supabaseSignIn(username, password);
-            this.isAuthenticated = true;
-            if (gate) gate.style.display = 'none';
-            this.updateUserBadge(username);
-            showToast(`مرحباً بك يا أبو حذيفة! تم تسجيل الدخول السحابي بنجاح (${username}) 🟢`);
-
-            // Auto-pull and sync latest cloud records
-            syncSupabaseToLocal().then(res => {
-              if (res.count > 0) {
-                console.log(`[Supabase] Auto-synced ${res.count} records after login.`);
-              }
-            }).catch(e => console.warn('Background sync note:', e));
-
-            return;
-          } catch (cloudErr) {
-            showGateMessage(cloudErr.message);
             return;
           }
+
+          // 2. SIGN IN MODE
+          await supabaseSignIn(username, password);
+          this.onAuthSuccess(username);
+        } catch (err) {
+          showGateMessage(err.message || 'تعذر إتمام العملية. يرجى المحاولة مرة أخرى.');
+          document.getElementById('gate-password-input')?.select();
         } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-shield-halved ml-1"></i> <span>${this.gateMode === 'signup' ? 'تفعيل وإنشاء الحساب السحابي' : 'تسجيل الدخول السحابي الآمن'}</span>`;
-          }
+          restoreBtn();
         }
       });
     }
+  }
+
+  onAuthSuccess(email) {
+    this.isAuthenticated = true;
+    this.hideGate();
+    this.updateUserBadge(email);
+    this.watchAuthState();
+    showToast(`مرحباً بك! تم تسجيل الدخول السحابي بنجاح (${email}) 🟢`);
+
+    const form = document.getElementById('gate-login-form');
+    if (form) form.reset();
+
+    // مزامنة صامتة في الخلفية بعد الدخول
+    syncSupabaseToLocal()
+      .then((res) => {
+        if (res?.count > 0) {
+          showToast(`تمت مزامنة ${res.count} سجل من قاعدة البيانات السحابية.`, 'info', 3500);
+          if (this.currentView) this.navigate(this.currentView);
+        }
+      })
+      .catch((e) => console.warn('Background sync note:', e));
   }
 
   setupRouter() {
@@ -431,11 +629,10 @@ class App {
         const loginForm = document.getElementById('auth-login-form');
         const emailEl = document.getElementById('auth-current-user-email');
 
-        if (user || sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session')) {
+        if (user) {
           if (loggedInBox) loggedInBox.style.display = 'block';
           if (loginForm) loginForm.style.display = 'none';
-          const sessObj = JSON.parse(sessionStorage.getItem('ah_user_session') || localStorage.getItem('ah_user_session') || '{}');
-          if (emailEl) emailEl.textContent = user?.email || sessObj.email || sessObj.name || 'abuhdyfh@gmail.com';
+          if (emailEl) emailEl.textContent = user.email || user.name || '';
         } else {
           if (loggedInBox) loggedInBox.style.display = 'none';
           if (loginForm) loginForm.style.display = 'block';
@@ -460,7 +657,9 @@ class App {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري التحقق...';
           }
           await supabaseSignIn(email, password);
+          this.isAuthenticated = true;
           this.updateUserBadge(email);
+          this.watchAuthState();
           showToast(`تم تسجيل الدخول بنجاح للمستخدم (${email})`);
           closeModal('auth-modal');
           loginForm.reset();
@@ -481,10 +680,12 @@ class App {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
         await supabaseSignOut();
-        showToast('تم تسجيل الخروج.');
+        this.isAuthenticated = false;
+        showToast('تم تسجيل الخروج بنجاح.');
         closeModal('auth-modal');
-        const gate = document.getElementById('app-login-gate');
-        if (gate) gate.style.display = 'flex';
+        this.showGate();
+        this.setupLoginGateEvents();
+        await this.refreshGateCloudStatus();
       });
     }
   }
@@ -728,15 +929,39 @@ class App {
   }
 
   registerServiceWorker() {
-    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
-      navigator.serviceWorker.register('./sw.js')
-        .then((reg) => {
-          console.log('[PWA] Service Worker registered successfully:', reg.scope);
-        })
-        .catch((err) => {
-          console.log('[PWA] Service Worker registration skipped or failed:', err);
+    if (!('serviceWorker' in navigator) || !window.location.protocol.startsWith('http')) return;
+
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => {
+        console.log('[PWA] Service Worker registered:', reg.scope);
+
+        // اكتشاف نسخة جديدة بعد النشر وتحديثها فوراً (يمنع بقاء مفاتيح/كود قديم)
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              showToast('تتوفر نسخة محدّثة من النظام، جاري التحديث...', 'info', 3000);
+              newWorker.postMessage('SKIP_WAITING');
+            }
+          });
         });
-    }
+
+        // فحص التحديثات عند العودة إلى التطبيق
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      })
+      .catch((err) => {
+        console.log('[PWA] Service Worker registration skipped:', err);
+      });
+
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    });
   }
 
   setupTabControllers() {
@@ -765,5 +990,7 @@ class App {
 // Global bootstrap
 window.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
+  // التقاط رابط إعادة تعيين كلمة المرور قبل أي توجيه
+  window.app.pendingRecovery = /type=recovery/.test(window.location.hash || '');
   window.app.start();
 });
