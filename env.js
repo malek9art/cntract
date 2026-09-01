@@ -2,7 +2,7 @@
  * Environment configuration - Abu Hudhayfah HR & Contracts System
  * ---------------------------------------------------------------
  * هذا الملف عبارة عن قالب فارغ فقط.
- * أثناء النشر يقوم GitHub Actions (.github/workflows/deploy-pages.yml)
+ * أثناء النشر يقوم GitHub Actions (.github/workflows/static.yml)
  * بإعادة توليد هذا الملف وحقن قيم أسرار المستودع:
  *   SUPABASE_URL  /  SUPABASE_ANON_KEY
  *
