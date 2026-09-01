@@ -1,0 +1,3 @@
+mkdir -p .github/workflows
+cp deploy/github-pages-workflow.yml .github/workflows/deploy-pages.yml
+git add .github/workflows/deploy-pages.yml && git commit -m "ci: deploy workflow" && git push
