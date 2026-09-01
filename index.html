@@ -35,8 +35,6 @@
 </head>
 <body>
 
-<body>
-
   <!-- ========================================================================= -->
   <!-- EXCLUSIVE SUPABASE CLOUD AUTHENTICATION PORTAL (تسجيل الدخول السحابي المعتمد) -->
   <!-- ========================================================================= -->
@@ -64,11 +62,54 @@
           </button>
         </div>
 
+        <!-- Cloud connection status (read-only, keys come from GitHub Secrets) -->
+        <div id="gate-cloud-status" class="auth-cloud-status is-connecting">
+          <span class="auth-cloud-dot"></span>
+          <div class="auth-cloud-text">
+            <strong id="gate-cloud-status-title">جارٍ التحقق من الاتصال السحابي...</strong>
+            <small id="gate-cloud-status-detail">يرجى الانتظار لحظة</small>
+          </div>
+          <button type="button" class="auth-cloud-retry" id="btn-gate-retry-cloud" title="إعادة محاولة الاتصال" style="display:none;">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+
         <!-- Feedback and Error Alert Container -->
         <div id="gate-auth-message-box" class="auth-feedback-box">
           <i class="fa-solid fa-circle-info mt-0.5 text-base"></i>
           <div id="gate-auth-message-text" class="flex-1 font-medium"></div>
         </div>
+
+        <!-- Password Recovery: set a new password after clicking the emailed link -->
+        <form id="gate-recovery-form" style="display:none;">
+          <div class="auth-cloud-status is-ready" style="margin-bottom:1rem;">
+            <span class="auth-cloud-dot"></span>
+            <div class="auth-cloud-text">
+              <strong>إعادة تعيين كلمة المرور</strong>
+              <small id="gate-recovery-email" style="direction:rtl;text-align:right;">أدخل كلمة المرور الجديدة</small>
+            </div>
+          </div>
+
+          <div class="auth-input-group">
+            <label class="auth-input-label">كلمة المرور الجديدة <span class="text-rose-500">*</span></label>
+            <div class="auth-input-wrapper">
+              <input type="password" id="gate-new-password" class="auth-input-control font-mono ltr-text" placeholder="••••••••" minlength="6" required />
+              <i class="fa-solid fa-lock-open auth-input-icon"></i>
+            </div>
+          </div>
+
+          <div class="auth-input-group">
+            <label class="auth-input-label">تأكيد كلمة المرور الجديدة <span class="text-rose-500">*</span></label>
+            <div class="auth-input-wrapper">
+              <input type="password" id="gate-confirm-password" class="auth-input-control font-mono ltr-text" placeholder="••••••••" minlength="6" required />
+              <i class="fa-solid fa-check-double auth-input-icon"></i>
+            </div>
+          </div>
+
+          <button type="submit" class="auth-submit-btn" id="btn-gate-save-password">
+            <i class="fa-solid fa-key ml-1"></i> <span>حفظ كلمة المرور الجديدة</span>
+          </button>
+        </form>
 
         <!-- Main Cloud Authentication Form -->
         <form id="gate-login-form" novalidate>
@@ -113,6 +154,10 @@
             </div>
           </div>
 
+          <div id="gate-capslock-hint" class="auth-capslock-hint" style="display:none;">
+            <i class="fa-solid fa-triangle-exclamation ml-1"></i> تنبيه: زر Caps Lock مُفعّل
+          </div>
+
           <!-- Submit Button -->
           <button type="submit" class="auth-submit-btn" id="btn-gate-submit-login">
             <i class="fa-solid fa-shield-halved ml-1"></i>
@@ -120,25 +165,14 @@
           </button>
         </form>
 
-        <!-- Inline Config Assistant (Shown when Supabase needs setup) -->
-        <div id="gate-cloud-setup-helper" style="display: none;" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
-          <div class="font-bold mb-1"><i class="fa-solid fa-triangle-exclamation text-amber-600 ml-1"></i> تنبيه ربط السحابة:</div>
-          <div>لم يتم العثور على مفاتيح Supabase. يرجى إدخال Project URL و Anon Key في شاشة الإعدادات أو حقنها في أسرار GitHub.</div>
-          <button type="button" class="btn btn-xs btn-outline mt-2 w-full" id="btn-gate-open-settings">
-            <i class="fa-solid fa-gear ml-1"></i> فتح شاشة ضبط مفاتيح Supabase
-          </button>
-        </div>
-
       </div>
 
       <!-- Footer Security & Privacy Badge -->
       <div class="auth-footer-badge">
         <span><i class="fa-solid fa-lock text-emerald-600 ml-1"></i> تشفير 256-bit SSL / Supabase Auth</span>
-        <span class="text-slate-400">v1.0.2</span>
+        <span class="text-slate-400">v1.1.0</span>
       </div>
 
-    </div>
-  </div>
     </div>
   </div>
 
@@ -1209,44 +1243,45 @@
                   <span id="supabase-status-badge" class="badge badge-slate text-xs">وضع محلي</span>
                 </div>
                 <div class="card-body">
-                  <form id="supabase-config-form">
-                    <div class="form-group">
-                      <label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-800">
-                        <input type="checkbox" name="supabaseEnabled" id="supabase-enabled-toggle" />
-                        <span>تفعيل المزامنة وقاعدة البيانات السحابية Supabase</span>
-                      </label>
+                  <!-- المفاتيح تُحقن تلقائياً من أسرار GitHub - لا يوجد إدخال يدوي -->
+                  <div class="cloud-secrets-panel" id="cloud-secrets-panel">
+                    <div class="cloud-secret-row">
+                      <span class="cloud-secret-label"><i class="fa-solid fa-link ml-1"></i> عنوان المشروع</span>
+                      <span class="cloud-secret-value ltr-text font-mono" id="cloud-secret-url">—</span>
                     </div>
-
-                    <div class="form-group">
-                      <label class="form-label text-xs">عنوان المشروع السحابي (Project URL)</label>
-                      <input type="url" name="supabaseUrl" id="supabase-url-input" class="form-control form-control-sm font-mono ltr-text" placeholder="https://xyzcompany.supabase.co" />
+                    <div class="cloud-secret-row">
+                      <span class="cloud-secret-label"><i class="fa-solid fa-key ml-1"></i> المفتاح العام</span>
+                      <span class="cloud-secret-value ltr-text font-mono" id="cloud-secret-key">—</span>
                     </div>
-
-                    <div class="form-group">
-                      <label class="form-label text-xs">المفتاح العام (Anon Public Key)</label>
-                      <input type="password" name="supabaseAnonKey" id="supabase-anon-key-input" class="form-control form-control-sm font-mono ltr-text" placeholder="eyJhbGciOiJIUzI1NiIsInR5..." />
+                    <div class="cloud-secret-row">
+                      <span class="cloud-secret-label"><i class="fa-solid fa-code-branch ml-1"></i> آخر نشر</span>
+                      <span class="cloud-secret-value" id="cloud-secret-build">—</span>
                     </div>
+                  </div>
 
-                    <div class="space-y-2 pt-2">
-                      <button type="submit" class="btn btn-sm btn-primary w-full">
-                        <i class="fa-solid fa-floppy-disk ml-1"></i> حفظ إعدادات Supabase
+                  <div class="cloud-secrets-note" id="cloud-secrets-note">
+                    <i class="fa-solid fa-shield-halved ml-1"></i>
+                    تتم إدارة مفاتيح الاتصال السحابي حصرياً عبر
+                    <strong>أسرار مستودع GitHub</strong> (<code class="ltr-text">SUPABASE_URL</code> و <code class="ltr-text">SUPABASE_ANON_KEY</code>)
+                    ويتم حقنها تلقائياً أثناء النشر. لا حاجة لإدخال أي مفاتيح هنا.
+                  </div>
+
+                  <div class="space-y-2 pt-3">
+                    <button type="button" class="btn btn-sm btn-outline w-full" id="btn-test-supabase">
+                      <i class="fa-solid fa-plug ml-1"></i> فحص الاتصال بقاعدة البيانات السحابية
+                    </button>
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                      <button type="button" class="btn btn-xs btn-outline" id="btn-sync-to-supabase">
+                        <i class="fa-solid fa-cloud-arrow-up ml-1"></i> رفع للسحابة
                       </button>
-                      <button type="button" class="btn btn-sm btn-outline w-full" id="btn-test-supabase">
-                        <i class="fa-solid fa-plug ml-1"></i> اختبار الاتصال بـ Supabase
+                      <button type="button" class="btn btn-xs btn-outline" id="btn-pull-from-supabase">
+                        <i class="fa-solid fa-cloud-arrow-down ml-1"></i> تنزيل من السحابة
                       </button>
-                      <div class="grid grid-cols-2 gap-2 pt-1">
-                        <button type="button" class="btn btn-xs btn-outline" id="btn-sync-to-supabase">
-                          <i class="fa-solid fa-cloud-arrow-up ml-1"></i> رفع للسحابة
-                        </button>
-                        <button type="button" class="btn btn-xs btn-outline" id="btn-pull-from-supabase">
-                          <i class="fa-solid fa-cloud-arrow-down ml-1"></i> تنزيل من السحابة
-                        </button>
-                      </div>
-                      <div class="text-xs text-muted text-center mt-2">
-                        آخر مزامنة: <span id="supabase-last-sync-date">لم تتم</span>
-                      </div>
                     </div>
-                  </form>
+                    <div class="text-xs text-muted text-center mt-2">
+                      آخر مزامنة: <span id="supabase-last-sync-date">لم تتم</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2242,7 +2277,7 @@
             <i class="fa-solid fa-right-to-bracket ml-1"></i> تسجيل الدخول السحابي الآمن
           </button>
           <div class="text-xs text-muted text-center mt-3">
-            تنبيه: يتطلب تسجيل الدخول السحابي ضبط بيانات Supabase في شاشة الإعدادات.
+            <i class="fa-solid fa-shield-halved ml-1"></i> الاتصال السحابي مُهيّأ تلقائياً وبشكل آمن عبر أسرار GitHub.
           </div>
         </form>
       </div>

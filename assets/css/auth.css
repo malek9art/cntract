@@ -287,3 +287,205 @@
   background: #00B4D8;
   color: #FFFFFF;
 }
+
+/* ========================================================================= */
+/* CLOUD CONNECTION STATUS STRIP (login gate) - read-only, keys via secrets   */
+/* ========================================================================= */
+
+.auth-cloud-status {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.85rem;
+  margin-bottom: 1.1rem;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.auth-cloud-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.auth-cloud-text strong {
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.auth-cloud-text small {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  direction: ltr;
+  text-align: right;
+  unicode-bidi: plaintext;
+}
+
+.auth-cloud-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  position: relative;
+}
+
+.auth-cloud-status.is-connecting {
+  background: #F1F5F9;
+  border-color: #E2E8F0;
+  color: #475569;
+}
+
+.auth-cloud-status.is-connecting .auth-cloud-dot {
+  animation: authPulse 1.2s ease-in-out infinite;
+}
+
+.auth-cloud-status.is-ready {
+  background: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #065F46;
+}
+
+.auth-cloud-status.is-ready .auth-cloud-dot {
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
+}
+
+.auth-cloud-status.is-offline {
+  background: #FFFBEB;
+  border-color: #FDE68A;
+  color: #92400E;
+}
+
+.auth-cloud-status.is-error {
+  background: #FEF2F2;
+  border-color: #FECACA;
+  color: #9F1239;
+}
+
+.auth-cloud-retry {
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.auth-cloud-retry:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.auth-cloud-retry.is-spinning i {
+  animation: authSpin 0.8s linear infinite;
+}
+
+@keyframes authPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+@keyframes authSpin {
+  to { transform: rotate(360deg); }
+}
+
+.auth-capslock-hint {
+  margin: -0.35rem 0 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #B45309;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+body.auth-locked {
+  overflow: hidden;
+}
+
+/* ========================================================================= */
+/* SETTINGS: GITHUB-SECRETS CLOUD PANEL (read-only)                          */
+/* ========================================================================= */
+
+.cloud-secrets-panel {
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: #F8FAFC;
+}
+
+.cloud-secret-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.78rem;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.cloud-secret-row:last-child {
+  border-bottom: none;
+}
+
+.cloud-secret-label {
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cloud-secret-value {
+  color: #0F172A;
+  font-weight: 700;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+
+.cloud-secret-value.is-missing {
+  color: #E11D48;
+}
+
+.cloud-secrets-note {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1E3A8A;
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
+.cloud-secrets-note.is-warning {
+  background: #FFFBEB;
+  border-color: #FDE68A;
+  color: #92400E;
+}
+
+.cloud-secrets-note code {
+  background: rgba(255, 255, 255, 0.75);
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
