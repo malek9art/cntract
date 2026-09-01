@@ -125,17 +125,15 @@ cntract/
 > ⚠️ يجب أن يكون العنوان بصيغة `https://` وبدون `/` في نهايته، وأن يكون المفتاح هو
 > مفتاح `anon public` وليس `service_role` (الأخير سري ولا يجوز نشره في المتصفح).
 
-### 0) تركيب ملف الـ workflow (مرة واحدة فقط)
+### 0) تجهيز ملف الـ workflow (مرة واحدة فقط)
 
-نسخة جاهزة موجودة في `deploy/github-pages-workflow.yml` — انقلها إلى مسار الـ workflows:
+قوالب GitHub الافتراضية (`static.yml` و `jekyll-gh-pages.yml`) **لا تحقن الأسرار**،
+وتنشر `env.js` فارغاً فيفشل تسجيل الدخول.
 
-```bash
-mkdir -p .github/workflows
-cp deploy/github-pages-workflow.yml .github/workflows/deploy-pages.yml
-git add .github/workflows/deploy-pages.yml && git commit -m "ci: deploy workflow" && git push
-```
+استبدل محتوى `.github/workflows/static.yml` بمحتوى الملف الجاهز `deploy/static.yml`،
+واحذف `.github/workflows/jekyll-gh-pages.yml` لأنه ينشر بالتوازي ويتعارض معه.
 
-التفاصيل الكاملة في `deploy/README.md`.
+خطوات مفصّلة بالصور في **`deploy/README.md`**.
 
 ### 2) تفعيل النشر عبر GitHub Actions ‼️
 
@@ -151,7 +149,7 @@ git add .github/workflows/deploy-pages.yml && git commit -m "ci: deploy workflow
 ادفع أي تعديل إلى الفرع `main`، أو شغّل النشر يدوياً من:
 **Actions ← Build & Deploy to GitHub Pages ← Run workflow**.
 
-سيقوم الـ workflow الموجود في `.github/workflows/deploy-pages.yml` بـ:
+سيقوم الـ workflow بـ:
 - التحقق من وجود السرّين وإيقاف النشر برسالة خطأ واضحة إذا كان أحدهما ناقصاً.
 - توليد ملف `env.js` وحقن القيم فيه.
 - إضافة بصمة زمنية لكسر الكاش (`env.js?v=...`) وتحديث نسخة الـ Service Worker.

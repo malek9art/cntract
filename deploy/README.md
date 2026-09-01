@@ -1,42 +1,84 @@
-# تفعيل النشر الآلي مع حقن أسرار GitHub
+# خطوتان لتشغيل النظام ✅
 
-> ⚠️ **لماذا هذا الملف هنا وليس في `.github/workflows/`؟**
-> صلاحيات الوصول المستخدمة في هذه الجلسة لا تسمح بدفع ملفات `workflow` إلى GitHub.
-> لذلك تم وضع نسخة جاهزة من الـ workflow هنا، وعليك نقلها بنفسك (خطوة واحدة).
+## الوضع الحالي (تم فحصه عبر GitHub API)
 
-## الطريقة الأولى: من سطر الأوامر
+| العنصر | الحالة |
+|---|---|
+| مصدر النشر = GitHub Actions | ✅ تم |
+| `supabase_rls_hardening.sql` | ✅ تم |
+| أسرار `SUPABASE_URL` / `SUPABASE_ANON_KEY` | ✅ مضافة |
+| **إصلاحات الكود مدمجة في `main`** | ❌ **لا** — ما زالت في فرع الـ PR فقط |
+| **workflow يحقن الأسرار في `env.js`** | ❌ **لا** — الملفان الموجودان قالبان افتراضيان لا يحقنان شيئاً |
+
+لذلك الموقع المنشور حالياً يعمل بالكود القديم وبملف `env.js` **فارغ**، وتسجيل الدخول ما زال يفشل.
+
+---
+
+## ما الذي حدث بالضبط؟
+
+الأسطر الثلاثة التالية كانت **أوامر تُنفَّذ في الطرفية (Terminal)**، وليست محتوى ملف:
 
 ```bash
 mkdir -p .github/workflows
 cp deploy/github-pages-workflow.yml .github/workflows/deploy-pages.yml
-git add .github/workflows/deploy-pages.yml
-git commit -m "ci: add GitHub Pages deploy workflow with Supabase secret injection"
-git push
+git add .github/workflows/deploy-pages.yml && git commit -m "ci: deploy workflow" && git push
 ```
 
-## الطريقة الثانية: من واجهة GitHub
-
-1. افتح المستودع على GitHub ← **Add file** ← **Create new file**.
-2. اكتب في خانة الاسم: `.github/workflows/deploy-pages.yml`
-3. الصق محتوى الملف `deploy/github-pages-workflow.yml` بالكامل.
-4. **Commit new file**.
+تم لصقها داخل الملف `deploy/github-pages-workflow.yml`، فاستُبدل محتوى الـ workflow
+الحقيقي بها. لذلك تخلّينا عن هذا المسار تماماً — **الطريقة الجديدة أبسط ولا تحتاج طرفية إطلاقاً.**
 
 ---
 
-## بعد إضافة الـ workflow — خطوتان إلزاميتان
+# الخطوة 1 — ادمج الـ Pull Request
 
-### 1) أسرار المستودع
-**Settings ← Secrets and variables ← Actions ← New repository secret**
+كل إصلاحات تسجيل الدخول موجودة في فرع `arena/01a05a74-cntract` ولم تصل إلى `main` بعد.
 
-| الاسم | القيمة |
+1. افتح تبويب **Pull requests** في المستودع.
+2. افتح الـ PR بعنوان *«إصلاح تسجيل الدخول والربط السحابي عبر أسرار GitHub»*.
+3. اضغط **Merge pull request** ← **Confirm merge**.
+
+---
+
+# الخطوة 2 — استبدل محتوى `static.yml`
+
+> تحتاج ذلك لأن أذونات هذه الجلسة لا تسمح لي بتعديل ملفات `workflow` بنفسي.
+
+1. افتح في المتصفح:
+   `https://github.com/malek9art/cntract/blob/main/.github/workflows/static.yml`
+2. اضغط أيقونة **القلم ✏️ (Edit this file)**.
+3. **احذف كل المحتوى** (Ctrl+A ثم Delete).
+4. افتح الملف `deploy/static.yml` من هذا المستودع، وانسخ محتواه **كاملاً**، والصقه مكانه.
+5. اضغط **Commit changes**.
+
+## ثم احذف الـ workflow المكرر
+
+يوجد ملف ثانٍ ينشر الموقع في نفس الوقت ويتعارض مع الأول (لاحظ أن أحد التشغيلات
+ظهر بحالة `cancelled` بسبب ذلك)، وهو مخصص لمواقع Jekyll ولا علاقة له بمشروعك:
+
+1. افتح `https://github.com/malek9art/cntract/blob/main/.github/workflows/jekyll-gh-pages.yml`
+2. القائمة **⋯** ← **Delete file** ← **Commit changes**.
+
+(اختياري: احذف أيضاً `deploy/github-pages-workflow.yml` فمحتواه الآن مجرد أوامر ملصقة بالخطأ.)
+
+---
+
+# الخطوة 3 — تحقق من النجاح
+
+بعد الـ merge سيبدأ النشر تلقائياً. راقبه من تبويب **Actions**:
+
+- ✅ ستجد في سجل التشغيل خطوة `Generate env.js from repository secrets`
+  تطبع المضيف مثل `abcdefgh.supabase.co` والمفتاح مُقنَّعاً `********`.
+- ❌ إذا فشل عند `Verify required repository secrets` فالسبب سرّ ناقص أو فارغ.
+
+ثم افتح الموقع: `https://malek9art.github.io/cntract/`
+
+| ما تراه | المعنى |
 |---|---|
-| `SUPABASE_URL` | `https://xxxxxxxx.supabase.co` |
-| `SUPABASE_ANON_KEY` | مفتاح `anon` `public` من Project Settings ← API |
+| شريط **أخضر**: «الاتصال بقاعدة البيانات السحابية جاهز» | ✅ كل شيء تمام — سجّل الدخول |
+| شريط **أحمر**: «الخدمة السحابية غير مُهيّأة» | لم تُحقن المفاتيح — راجع سجل Actions |
+| شريط **أصفر** | لا يوجد اتصال إنترنت |
 
-### 2) مصدر النشر
-**Settings ← Pages ← Build and deployment ← Source = `GitHub Actions`**
+> إن ظهرت لك الشاشة القديمة، اعمل تحديثاً قسرياً مرة واحدة (Ctrl+Shift+R).
+> بعدها يتولى النظام تحديث نفسه تلقائياً عند كل نشر جديد.
 
-> حالياً المستودع مضبوط على `Deploy from a branch`، وهذا الوضع ينشر ملف `env.js`
-> الفارغ بدون حقن المفاتيح — وهو السبب الجذري لفشل تسجيل الدخول.
-
-بعدها شغّل النشر من: **Actions ← Build & Deploy to GitHub Pages ← Run workflow**.
+للتأكد النهائي: **الإعدادات ← ربط قاعدة بيانات Supabase ← فحص الاتصال بقاعدة البيانات السحابية**.
