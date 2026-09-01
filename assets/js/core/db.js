@@ -146,6 +146,7 @@ class AppDatabase {
         this.db = event.target.result;
         this.isReady = true;
         await this.ensureInitialSeed();
+        await this.applyDataFixes();
         resolve(this);
       };
 
@@ -173,6 +174,72 @@ class AppDatabase {
       await this.bulkAdd('vouchers', INITIAL_VOUCHERS);
       await this.bulkAdd('audit_logs', INITIAL_AUDIT_LOGS);
       console.log('Initial clean configuration seeded successfully.');
+    }
+  }
+
+  /**
+   * إصلاح الأخطاء الإملائية في نصوص العقود المخزّنة محلياً.
+   * هذه التصحيحات تُطبّق عند كل تشغيل حتى تصحّح النسخ القديمة المحفوظة في
+   * قاعدة IndexedDB قبل نشر الإصلاح دون الحاجة إلى مسح بيانات المستخدم.
+   * ملاحظة: لا يتم تعديل إصدارات العقود المؤرشفة (contract_revisions)
+   * لأنها سجلات تاريخية يجب أن تبقى كما كانت وقت اعتمادها.
+   */
+  async applyDataFixes() {
+    const fixes = [
+      {
+        from: 'قرآ هذا العقد',
+        to: 'قرأ هذا العقد'
+      }
+    ];
+
+    let changedCount = 0;
+
+    // 1) تصحيح بنود التعاقد المركزية
+    const clauses = await this.getAll('contract_clauses');
+    for (const clause of clauses) {
+      let changed = false;
+      let newContent = clause.content || '';
+      for (const fix of fixes) {
+        if (newContent.includes(fix.from)) {
+          newContent = newContent.split(fix.from).join(fix.to);
+          changed = true;
+        }
+      }
+      if (changed) {
+        clause.content = newContent;
+        clause.updatedAt = new Date().toISOString();
+        await this.put('contract_clauses', clause);
+        changedCount++;
+      }
+    }
+
+    // 2) تصحيح نسخ البنود المنسوخة داخل العقود الحالية (النشطة)
+    const contracts = await this.getAll('contracts');
+    for (const contract of contracts) {
+      if (!Array.isArray(contract.clauses)) continue;
+      let changed = false;
+      for (let i = 0; i < contract.clauses.length; i++) {
+        const content = (contract.clauses[i] && contract.clauses[i].content) || '';
+        let newContent = content;
+        for (const fix of fixes) {
+          if (newContent.includes(fix.from)) {
+            newContent = newContent.split(fix.from).join(fix.to);
+            changed = true;
+          }
+        }
+        if (changed) {
+          contract.clauses[i].content = newContent;
+        }
+      }
+      if (changed) {
+        contract.updatedAt = new Date().toISOString();
+        await this.put('contracts', contract);
+        changedCount++;
+      }
+    }
+
+    if (changedCount > 0) {
+      console.log(`Applied contract text fixes to ${changedCount} record(s).`);
     }
   }
 

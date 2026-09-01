@@ -544,6 +544,10 @@ export async function syncSupabaseToLocal() {
     }
   }
 
+  // إعادة تطبيق إصلاحات النصوص بعد السحب حتى لا تعيد السحابة القديمة
+  // كتابة الأخطاء الإملائية المصححة محلياً فوق النسخة المحلية السليمة.
+  await db.applyDataFixes();
+
   const config = await getSupabaseConfig();
   config.lastSyncDate = new Date().toISOString();
   await saveSupabaseConfig(config);
