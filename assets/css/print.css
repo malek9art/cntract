@@ -1,0 +1,410 @@
+/* ==========================================================================
+   Abu Hudhayfah Exchange & Transfers - Professional Print & PDF Media Styles
+   Engineered for pristine A4 RTL multi-page printing with 0 errors.
+   ========================================================================== */
+
+@page {
+  size: A4 portrait;
+  margin: 12mm 15mm 15mm 15mm;
+}
+
+/* Ensure background colors & graphics print with exact fidelity */
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+@media print {
+  /* Reset Page & Global Body */
+  html, body {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 10.5pt !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    direction: rtl !important;
+    text-align: right !important;
+    font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+  }
+
+  /* Completely Hide Web Application Chrome UI */
+  .app-sidebar,
+  .app-topbar,
+  .view-header,
+  .filter-toolbar,
+  .card-footer,
+  .table-actions,
+  .btn,
+  .modal-header,
+  .modal-footer,
+  .toast-container,
+  #app-sidebar,
+  .mobile-toggle-btn,
+  .topbar-live-clock,
+  .topbar-search-box,
+  .topbar-user-badge,
+  .tab-header-group,
+  .app-content-body > :not(#pdf-preview-modal) {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Full-bleed display of the active printable document modal */
+  #pdf-preview-modal {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .modal-dialog {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    display: block !important;
+  }
+
+  /* Document Sheet Styling */
+  .printable-a4-document {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background: transparent !important;
+    position: relative !important;
+  }
+
+  /* Subtle Background Watermark for Authenticity */
+  .printable-a4-document::before {
+    content: "" !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 320px !important;
+    height: 320px !important;
+    background-image: url('../images/logo.svg') !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+    opacity: 0.035 !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+  }
+
+  /* Header Layout */
+  .print-doc-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-bottom: 8px !important;
+    border-bottom: 2px solid #0A1E3F !important;
+    margin-bottom: 12px !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .doc-company-ar {
+    font-size: 13pt !important;
+    font-weight: 900 !important;
+    color: #0A1E3F !important;
+    margin: 0 !important;
+  }
+
+  .doc-company-sub {
+    font-size: 8.5pt !important;
+    color: #0284C7 !important;
+    font-weight: 700 !important;
+  }
+
+  .doc-company-meta {
+    font-size: 8pt !important;
+    color: #475569 !important;
+    margin-top: 2px !important;
+  }
+
+  .doc-header-logo {
+    width: 70px !important;
+    height: 70px !important;
+    object-fit: contain !important;
+    display: block !important;
+  }
+
+  .doc-company-en {
+    font-size: 9.5pt !important;
+    font-weight: 700 !important;
+    color: #0A1E3F !important;
+    text-align: left !important;
+  }
+
+  .doc-badge-meta {
+    font-size: 8pt !important;
+    color: #334155 !important;
+    text-align: left !important;
+    margin-top: 4px !important;
+  }
+
+  .doc-header-divider {
+    display: none !important;
+  }
+
+  .doc-title-bar {
+    text-align: center !important;
+    background: #F1F5F9 !important;
+    padding: 6px 12px !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 4px !important;
+    margin-bottom: 14px !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .doc-title-bar h1 {
+    font-size: 13pt !important;
+    font-weight: 900 !important;
+    color: #0A1E3F !important;
+    margin: 0 !important;
+  }
+
+  /* Parties Grid */
+  .parties-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .party-box {
+    background: #F8FAFC !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 4px !important;
+    padding: 8px 10px !important;
+    font-size: 9pt !important;
+  }
+
+  .party-badge {
+    font-weight: 800 !important;
+    color: #0A1E3F !important;
+    border-bottom: 1px solid #CBD5E1 !important;
+    padding-bottom: 3px !important;
+    margin-bottom: 5px !important;
+  }
+
+  /* Section Cards & Tables */
+  .doc-section-card {
+    margin-bottom: 14px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .section-card-title {
+    font-size: 10pt !important;
+    font-weight: 800 !important;
+    color: #0A1E3F !important;
+    margin-bottom: 6px !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .doc-data-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+    margin-bottom: 8px !important;
+  }
+
+  .doc-data-table th, .doc-data-table td {
+    border: 1px solid #94A3B8 !important;
+    padding: 5px 8px !important;
+    text-align: right !important;
+  }
+
+  .doc-data-table th {
+    background-color: #E2E8F0 !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+  }
+
+  .tafqeet-note {
+    font-size: 8.5pt !important;
+    background: #F8FAFC !important;
+    padding: 5px 8px !important;
+    border: 1px dashed #94A3B8 !important;
+    border-radius: 4px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Contract Clauses with Strict Orphan / Widow Prevention */
+  .doc-clauses-wrapper {
+    margin-bottom: 16px !important;
+  }
+
+  .clauses-header-title {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+    color: #0A1E3F !important;
+    margin-bottom: 8px !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .contract-clause-item {
+    margin-bottom: 10px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .clause-title {
+    font-size: 9.5pt !important;
+    font-weight: 800 !important;
+    color: #0A1E3F !important;
+    margin-bottom: 2px !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .clause-text {
+    font-size: 9pt !important;
+    color: #1E293B !important;
+    line-height: 1.55 !important;
+    text-align: justify !important;
+  }
+
+  /* Vouchers Box */
+  .voucher-info-box {
+    background: #F8FAFC !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 4px !important;
+    padding: 8px 10px !important;
+    margin-bottom: 12px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .voucher-meta-table {
+    width: 100% !important;
+    font-size: 9pt !important;
+  }
+
+  .voucher-meta-table td {
+    padding: 3px 6px !important;
+  }
+
+  .voucher-declaration-box {
+    background: #F8FAFC !important;
+    border: 1px dashed #94A3B8 !important;
+    border-radius: 4px !important;
+    padding: 8px 10px !important;
+    margin: 12px 0 !important;
+    font-size: 8.5pt !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .declaration-title {
+    font-weight: 800 !important;
+    color: #0A1E3F !important;
+    margin-bottom: 3px !important;
+    font-size: 9pt !important;
+  }
+
+  .declaration-text {
+    color: #1E293B !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Dual Signatures and Official Seal Stamp */
+  .doc-signatures-section {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 20px !important;
+    margin-top: 18px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid #94A3B8 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    position: relative !important;
+  }
+
+  .sig-col {
+    font-size: 8.5pt !important;
+    line-height: 1.7 !important;
+    position: relative !important;
+  }
+
+  .sig-title {
+    font-weight: 800 !important;
+    font-size: 9.5pt !important;
+    color: #0A1E3F !important;
+  }
+
+  .sig-role {
+    color: #475569 !important;
+    font-size: 8pt !important;
+    margin-bottom: 4px !important;
+  }
+
+  .sig-stamp-container {
+    position: absolute !important;
+    top: 5px !important;
+    left: 15px !important;
+    opacity: 0.88 !important;
+  }
+
+  .official-stamp-img {
+    width: 105px !important;
+    height: 105px !important;
+    object-fit: contain !important;
+    display: block !important;
+  }
+
+  /* Document Running Footer */
+  .print-doc-footer {
+    margin-top: 16px !important;
+    padding-top: 8px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .doc-footer-divider {
+    height: 1px !important;
+    background: #CBD5E1 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .doc-footer-content {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 7.5pt !important;
+    color: #64748B !important;
+  }
+}

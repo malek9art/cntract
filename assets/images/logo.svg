@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF" />
+      <stop offset="100%" stop-color="#0088CC" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A365D" />
+      <stop offset="100%" stop-color="#0D1B2A" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Speed lines & Stopwatch Outer Ring -->
+  <g fill="none" stroke="#15325B" stroke-width="16" stroke-linecap="round">
+    <!-- Stopwatch top knob -->
+    <path d="M 235 60 L 265 60" stroke-width="14" stroke="#1E4976" />
+    <path d="M 250 60 L 250 85" stroke-width="16" stroke="#1E4976" />
+    <!-- Clock arc -->
+    <path d="M 250 85 A 155 155 0 1 1 105 290" stroke="#15325B" stroke-width="18" />
+    
+    <!-- Speed motion trails on the left -->
+    <path d="M 140 135 L 200 135" stroke-width="10" stroke="#1A3D68" />
+    <path d="M 115 170 L 210 170" stroke-width="12" stroke="#183962" />
+    <path d="M 90 205 L 180 205" stroke-width="12" stroke="#183962" />
+    <path d="M 70 240 L 165 240" stroke-width="14" stroke="#183962" />
+    <path d="M 50 275 L 175 275" stroke-width="14" stroke="#1A406E" />
+    <path d="M 70 310 L 195 310" stroke-width="14" stroke="#1A406E" />
+    <path d="M 90 345 L 215 345" stroke-width="14" stroke="#1A406E" />
+    <path d="M 30 380 L 235 380" stroke-width="16" stroke="#1D4A7E" />
+  </g>
+
+  <!-- Clock tick marks -->
+  <g fill="#1A3D68">
+    <rect x="245" y="105" width="10" height="16" rx="4" />
+    <rect x="365" y="225" width="16" height="10" rx="4" />
+    <rect x="330" y="135" width="12" height="12" rx="3" transform="rotate(45 336 141)" />
+    <rect x="175" y="145" width="12" height="12" rx="3" transform="rotate(-45 181 151)" />
+    <rect x="170" y="305" width="12" height="12" rx="3" transform="rotate(45 176 311)" />
+  </g>
+
+  <!-- Banknotes (Center Graphic) -->
+  <g transform="translate(200, 155)">
+    <!-- Back note -->
+    <polygon points="30,20 90,0 125,75 65,95" fill="#0F294A" stroke="#1A3E6D" stroke-width="4" />
+    <!-- Middle note -->
+    <polygon points="20,35 85,15 120,95 55,115" fill="#133763" stroke="#204E85" stroke-width="4" />
+    <!-- Front note (Cyan / Highlight) -->
+    <polygon points="10,50 80,30 115,115 45,135" fill="url(#cyanGrad)" stroke="#00B4D8" stroke-width="3" />
+    <!-- Dollar Sign in front note -->
+    <text x="62" y="98" font-family="Arial, sans-serif" font-size="42" font-weight="900" fill="#091E3A" text-anchor="middle">$</text>
+    
+    <!-- Swoosh Orbit Ring -->
+    <path d="M -15,125 C 20,165 95,160 135,110 C 145,95 140,80 130,85 C 110,95 80,125 0,105 Z" fill="#00E5FF" />
+  </g>
+
+  <!-- Arabic Typography: أبو حذيفة -->
+  <g fill="#1B4B7F" stroke="#1B4B7F" stroke-width="1">
+    <text x="290" y="425" font-family="'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif" font-size="62" font-weight="900" text-anchor="middle" letter-spacing="1">أبو حـذيـفـة</text>
+  </g>
+
+  <!-- Arabic Subtitle: للصرافة والتحويلات -->
+  <g fill="#00D2D3">
+    <text x="290" y="468" font-family="'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif" font-size="28" font-weight="700" text-anchor="middle" letter-spacing="2">لـلـصـرافـة والـتـحـويـلات</text>
+  </g>
+</svg>
