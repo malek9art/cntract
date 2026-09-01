@@ -7,6 +7,7 @@ import { formatCurrency, formatDate, getDaysRemaining, getRelativeTimeArabic } f
 import { previewAndPrintDocument, buildContractDocumentHtml } from '../services/pdf-service.js';
 import { openContractModal } from './contracts.js';
 import { showToast } from '../ui/toast.js';
+import { escapeHtml } from '../utils/helpers.js';
 
 export async function initDashboard() {
   await renderDashboardMetrics();
@@ -124,7 +125,7 @@ export async function renderExpiringContractsAlerts(daysThreshold = 30) {
     container.innerHTML = `
       <div class="empty-state-card text-center py-6">
         <i class="fa-solid fa-circle-check text-emerald text-3xl mb-2"></i>
-        <p class="text-muted">لا توجد عقود تنتهي خلال ${daysThreshold} يوماً.</p>
+        <p class="text-muted">لا توجد عقود تنتهي خلال ${escapeHtml(daysThreshold)} يوماً.</p>
       </div>
     `;
     return;
@@ -138,18 +139,18 @@ export async function renderExpiringContractsAlerts(daysThreshold = 30) {
     return `
       <div class="alert-contract-row">
         <div class="contract-alert-info">
-          <div class="font-bold text-slate-800">${contract.employeeName}</div>
-          <div class="text-xs text-muted">رقم العقد: <span class="font-mono">${contract.contractNumber}</span> • ${contract.jobTitle || emp?.jobTitle || 'موظف'}</div>
+          <div class="font-bold text-slate-800">${escapeHtml(contract.employeeName)}</div>
+          <div class="text-xs text-muted">رقم العقد: <span class="font-mono">${escapeHtml(contract.contractNumber)}</span> • ${escapeHtml(contract.jobTitle) || escapeHtml(emp?.jobTitle) || 'موظف'}</div>
         </div>
         <div class="contract-alert-branch text-xs text-slate-600">
-          <i class="fa-solid fa-building text-xs"></i> ${contract.branchName || 'المركز الرئيسي'}
+          <i class="fa-solid fa-building text-xs"></i> ${escapeHtml(contract.branchName) || 'المركز الرئيسي'}
         </div>
         <div class="contract-alert-date">
-          <div class="text-xs text-muted">تاريخ النهاية: ${formatDate(contract.endDate)}</div>
-          <span class="badge ${badgeClass} text-xs mt-1">متبقي ${daysLeft} يوم</span>
+          <div class="text-xs text-muted">تاريخ النهاية: ${escapeHtml(formatDate(contract.endDate))}</div>
+          <span class="badge ${badgeClass} text-xs mt-1">متبقي ${escapeHtml(daysLeft)} يوم</span>
         </div>
         <div class="contract-alert-actions">
-          <button class="btn btn-sm btn-outline" data-action="view-contract-pdf" data-id="${contract.id}" title="معاينة وطباعة العقد">
+          <button class="btn btn-sm btn-outline" data-action="view-contract-pdf" data-id="${escapeHtml(contract.id)}" title="معاينة وطباعة العقد">
             <i class="fa-solid fa-print"></i>
           </button>
         </div>
@@ -182,16 +183,16 @@ export async function renderRecentContracts() {
 
     return `
       <tr>
-        <td class="font-mono text-xs font-bold text-primary">${c.contractNumber}</td>
-        <td><strong>${c.employeeName}</strong></td>
-        <td>${c.jobTitle || '—'}</td>
-        <td>${formatDate(c.startDate)}</td>
-        <td><span class="badge ${st.class}">${st.label}</span></td>
+        <td class="font-mono text-xs font-bold text-primary">${escapeHtml(c.contractNumber)}</td>
+        <td><strong>${escapeHtml(c.employeeName)}</strong></td>
+        <td>${escapeHtml(c.jobTitle) || '—'}</td>
+        <td>${escapeHtml(formatDate(c.startDate))}</td>
+        <td><span class="badge ${st.class}">${escapeHtml(st.label)}</span></td>
         <td class="text-end table-actions">
           <button class="btn btn-sm btn-icon btn-ghost" data-action="view-contract-pdf" data-id="${c.id}" title="طباعة العقد">
             <i class="fa-solid fa-print"></i>
           </button>
-          <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-contract" data-id="${c.id}" title="تعديل العقد">
+          <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-contract" data-id="${escapeHtml(c.id)}" title="تعديل العقد">
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
         </td>
@@ -219,11 +220,11 @@ export async function renderRecentActivities() {
       </div>
       <div class="activity-content">
         <div class="activity-title">
-          <span class="activity-action-tag">${log.action}</span>
-          <span class="activity-module">${log.module}</span>
+          <span class="activity-action-tag">${escapeHtml(log.action)}</span>
+          <span class="activity-module">${escapeHtml(log.module)}</span>
         </div>
-        <p class="activity-desc">${log.description}</p>
-        <div class="activity-time">${getRelativeTimeArabic(log.timestamp)} • بواسطة: ${log.user}</div>
+        <p class="activity-desc">${escapeHtml(log.description)}</p>
+        <div class="activity-time">${escapeHtml(getRelativeTimeArabic(log.timestamp))} • بواسطة: ${escapeHtml(log.user)}</div>
       </div>
     </div>
   `).join('');

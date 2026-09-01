@@ -4,7 +4,7 @@
 
 import { db } from '../core/db.js';
 import { DYNAMIC_VARIABLES } from '../data/constants.js';
-import { generateId } from '../utils/helpers.js';
+import { generateId, escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
@@ -43,37 +43,37 @@ export async function renderClausesList() {
     const isActive = clause.isActive !== false;
 
     return `
-      <div class="clause-card ${isActive ? '' : 'clause-disabled'}" data-clause-id="${clause.id}">
+      <div class="clause-card ${isActive ? '' : 'clause-disabled'}" data-clause-id="${escapeHtml(clause.id)}">
         <div class="clause-card-header">
           <div class="clause-order-badge">${clause.order || (index + 1)}</div>
           <div class="clause-title-area">
-            <span class="clause-num-tag font-semibold text-primary">${clause.numberText || `البند ${index + 1}`}</span>
-            <h4 class="clause-heading">${clause.title}</h4>
+            <span class="clause-num-tag font-semibold text-primary">${escapeHtml(clause.numberText) || `البند ${index + 1}`}</span>
+            <h4 class="clause-heading">${escapeHtml(clause.title)}</h4>
             ${!isActive ? '<span class="badge badge-slate text-xs mr-2">معطّل</span>' : ''}
           </div>
           <div class="clause-card-actions">
-            <button class="btn btn-sm btn-icon btn-ghost" data-action="reorder-clause-up" data-id="${clause.id}" ${isFirst ? 'disabled' : ''} title="تحريك لأعلى">
+            <button class="btn btn-sm btn-icon btn-ghost" data-action="reorder-clause-up" data-id="${escapeHtml(clause.id)}" ${isFirst ? 'disabled' : ''} title="تحريك لأعلى">
               <i class="fa-solid fa-arrow-up"></i>
             </button>
-            <button class="btn btn-sm btn-icon btn-ghost" data-action="reorder-clause-down" data-id="${clause.id}" ${isLast ? 'disabled' : ''} title="تحريك لأسفل">
+            <button class="btn btn-sm btn-icon btn-ghost" data-action="reorder-clause-down" data-id="${escapeHtml(clause.id)}" ${isLast ? 'disabled' : ''} title="تحريك لأسفل">
               <i class="fa-solid fa-arrow-down"></i>
             </button>
-            <button class="btn btn-sm btn-icon btn-ghost" data-action="toggle-clause-status" data-id="${clause.id}" title="${isActive ? 'تعطيل البند' : 'تفعيل البند'}">
+            <button class="btn btn-sm btn-icon btn-ghost" data-action="toggle-clause-status" data-id="${escapeHtml(clause.id)}" title="${isActive ? 'تعطيل البند' : 'تفعيل البند'}">
               <i class="fa-solid ${isActive ? 'fa-toggle-on text-emerald' : 'fa-toggle-off text-slate-400'} text-lg"></i>
             </button>
-            <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-clause" data-id="${clause.id}" title="تعديل البند">
+            <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-clause" data-id="${escapeHtml(clause.id)}" title="تعديل البند">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
-            <button class="btn btn-sm btn-icon btn-ghost" data-action="clone-clause" data-id="${clause.id}" title="نسخ البند">
+            <button class="btn btn-sm btn-icon btn-ghost" data-action="clone-clause" data-id="${escapeHtml(clause.id)}" title="نسخ البند">
               <i class="fa-solid fa-clone"></i>
             </button>
-            <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-clause" data-id="${clause.id}" title="حذف البند">
+            <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-clause" data-id="${escapeHtml(clause.id)}" title="حذف البند">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
         </div>
         <div class="clause-card-body">
-          <p class="clause-text-preview">${clause.content}</p>
+          <p class="clause-text-preview">${escapeHtml(clause.content)}</p>
         </div>
       </div>
     `;
@@ -85,8 +85,8 @@ export function renderDynamicVariablesPalette() {
   if (!container) return;
 
   container.innerHTML = DYNAMIC_VARIABLES.map(v => `
-    <button type="button" class="btn btn-xs btn-outline variable-tag-btn" data-tag="${v.tag}" title="${v.sample}">
-      <i class="fa-solid fa-code text-cyan text-xs ml-1"></i> ${v.label} <code class="ltr-text text-xs mr-1 text-slate-500">${v.tag}</code>
+    <button type="button" class="btn btn-xs btn-outline variable-tag-btn" data-tag="${escapeHtml(v.tag)}" title="${escapeHtml(v.sample)}">
+      <i class="fa-solid fa-code text-cyan text-xs ml-1"></i> ${escapeHtml(v.label)} <code class="ltr-text text-xs mr-1 text-slate-500">${escapeHtml(v.tag)}</code>
     </button>
   `).join('');
 

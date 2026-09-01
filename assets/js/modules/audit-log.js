@@ -4,6 +4,7 @@
 
 import { db } from '../core/db.js';
 import { formatDate, formatDateTime } from '../utils/formatters.js';
+import { escapeHtml } from '../utils/helpers.js';
 import { showToast } from '../ui/toast.js';
 import { showConfirmDialog } from '../ui/modal.js';
 
@@ -47,11 +48,11 @@ export async function renderAuditLogList() {
     return `
       <tr>
         <td class="font-mono text-xs text-slate-500">${formatDateTime(log.timestamp)}</td>
-        <td><span class="activity-action-tag">${log.action}</span></td>
-        <td><span class="badge badge-subtle-blue">${log.module}</span></td>
-        <td class="font-mono text-xs font-semibold text-slate-700">${log.recordId || '—'}</td>
-        <td class="text-sm text-slate-800">${log.description}</td>
-        <td><span class="text-xs font-semibold text-slate-700"><i class="fa-solid fa-user-shield text-xs ml-1 text-primary"></i> ${log.user}</span></td>
+        <td><span class="activity-action-tag">${escapeHtml(log.action)}</span></td>
+        <td><span class="badge badge-subtle-blue">${escapeHtml(log.module)}</span></td>
+        <td class="font-mono text-xs font-semibold text-slate-700">${escapeHtml(log.recordId) || '—'}</td>
+        <td class="text-sm text-slate-800">${escapeHtml(log.description)}</td>
+        <td><span class="text-xs font-semibold text-slate-700"><i class="fa-solid fa-user-shield text-xs ml-1 text-primary"></i> ${escapeHtml(log.user)}</span></td>
       </tr>
     `;
   }).join('');

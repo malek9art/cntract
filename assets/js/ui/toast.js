@@ -2,6 +2,8 @@
  * Abu Hudhayfah Exchange & Transfers - Toast Notifications
  */
 
+import { escapeHtml } from '../utils/helpers.js';
+
 export function showToast(message, type = 'success', duration = 3500) {
   let container = document.getElementById('toast-container');
   if (!container) {
@@ -25,7 +27,7 @@ export function showToast(message, type = 'success', duration = 3500) {
 
   toast.innerHTML = `
     <div class="toast-icon"><i class="fa-solid ${icon}"></i></div>
-    <div class="toast-message">${message}</div>
+    <div class="toast-message">${escapeHtml(message)}</div>
     <button class="toast-close-btn" aria-label="إغلاق">&times;</button>
   `;
 

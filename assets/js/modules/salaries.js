@@ -5,6 +5,7 @@
 
 import { db } from '../core/db.js';
 import { formatCurrency, formatDate, tafqeetArabic } from '../utils/formatters.js';
+import { escapeHtml } from '../utils/helpers.js';
 import { previewAndPrintDocument, renderDocumentHeader, renderDocumentFooter, renderSignatureBlock } from '../services/pdf-service.js';
 
 export async function initSalaries() {
@@ -18,7 +19,7 @@ export async function renderSalaryFilters() {
   const branchSelect = document.getElementById('salary-filter-branch');
   if (branchSelect) {
     branchSelect.innerHTML = `<option value="">جميع الفروع</option>` +
-      branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      branches.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
   }
 }
 
@@ -93,19 +94,19 @@ export async function renderSalariesList() {
     return `
       <tr>
         <td>
-          <div class="font-bold text-slate-800">${e.fullName}</div>
-          <div class="text-xs text-muted font-mono">${e.code} • ${e.jobTitle || '—'}</div>
+          <div class="font-bold text-slate-800">${escapeHtml(e.fullName)}</div>
+          <div class="text-xs text-muted font-mono">${escapeHtml(e.code)} • ${escapeHtml(e.jobTitle) || '—'}</div>
         </td>
-        <td><i class="fa-solid fa-building text-xs text-muted ml-1"></i> ${e.branchName || '—'}</td>
+        <td><i class="fa-solid fa-building text-xs text-muted ml-1"></i> ${escapeHtml(e.branchName) || '—'}</td>
         <td><span class="badge ${e.currency === 'SAR' ? 'badge-amber' : 'badge-subtle-blue'}">${e.currency === 'SAR' ? 'ريال سعودي (SAR)' : 'ريال يمني (YER)'}</span></td>
-        <td class="font-semibold text-slate-800">${formatCurrency(base, e.currency)}</td>
-        <td class="text-emerald font-semibold">+ ${formatCurrency(allow, e.currency)}</td>
-        <td class="text-rose font-semibold">- ${formatCurrency(ded, e.currency)}</td>
+        <td class="font-semibold text-slate-800">${escapeHtml(formatCurrency(base, e.currency))}</td>
+        <td class="text-emerald font-semibold">+ ${escapeHtml(formatCurrency(allow, e.currency))}</td>
+        <td class="text-rose font-semibold">- ${escapeHtml(formatCurrency(ded, e.currency))}</td>
         <td>
-          <div class="font-black text-slate-900 text-base">${formatCurrency(net, e.currency)}</div>
+          <div class="font-black text-slate-900 text-base">${escapeHtml(formatCurrency(net, e.currency))}</div>
         </td>
         <td class="text-end table-actions">
-          <button class="btn btn-sm btn-outline" data-action="print-salary-slip" data-id="${e.id}" title="طباعة قسيمة الراتب">
+          <button class="btn btn-sm btn-outline" data-action="print-salary-slip" data-id="${escapeHtml(e.id)}" title="طباعة قسيمة الراتب">
             <i class="fa-solid fa-receipt ml-1"></i> قسيمة راتب
           </button>
         </td>
@@ -138,15 +139,15 @@ export async function printEmployeeSalarySlip(employeeId) {
       <div class="voucher-info-box mb-6">
         <table class="voucher-meta-table">
           <tr>
-            <td><strong>اسم الموظف:</strong> ${emp.fullName}</td>
-            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono">${emp.code}</span></td>
+            <td><strong>اسم الموظف:</strong> ${escapeHtml(emp.fullName)}</td>
+            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono">${escapeHtml(emp.code)}</span></td>
           </tr>
           <tr>
-            <td><strong>المسمى الوظيفي:</strong> ${emp.jobTitle || '—'}</td>
-            <td><strong>الفرع / الإدارة:</strong> ${emp.branchName || '—'}</td>
+            <td><strong>المسمى الوظيفي:</strong> ${escapeHtml(emp.jobTitle) || '—'}</td>
+            <td><strong>الفرع / الإدارة:</strong> ${escapeHtml(emp.branchName) || '—'}</td>
           </tr>
           <tr>
-            <td><strong>رقم الهوية:</strong> <span class="font-mono">${emp.nationalId}</span></td>
+            <td><strong>رقم الهوية:</strong> <span class="font-mono">${escapeHtml(emp.nationalId)}</span></td>
             <td><strong>شهر الاستحقاق:</strong> ${monthName}</td>
           </tr>
         </table>
@@ -188,7 +189,7 @@ export async function printEmployeeSalarySlip(employeeId) {
         <div class="net-payable-box mt-4 p-4 rounded bg-primary/10 border border-primary/20 flex justify-between items-center">
           <div>
             <span class="text-sm text-slate-700 block font-bold">صافي المبلغ المستحق للصرف:</span>
-            <div class="text-xs text-muted mt-1 font-semibold">${tafqeet}</div>
+            <div class="text-xs text-muted mt-1 font-semibold">${escapeHtml(tafqeet)}</div>
           </div>
           <div class="text-2xl font-black text-primary">${formatCurrency(net, emp.currency)}</div>
         </div>
@@ -230,15 +231,15 @@ export async function printPayrollSummarySheet() {
     return `
       <tr>
         <td class="text-center font-mono text-xs">${idx + 1}</td>
-        <td class="font-mono text-xs">${e.code}</td>
-        <td><strong>${e.fullName}</strong></td>
-        <td>${e.jobTitle || '—'}</td>
-        <td>${e.branchName || '—'}</td>
-        <td><span class="badge ${e.currency === 'SAR' ? 'badge-amber' : 'badge-subtle-blue'} text-xs">${e.currency}</span></td>
-        <td>${formatCurrency(base, e.currency)}</td>
+        <td class="font-mono text-xs">${escapeHtml(e.code)}</td>
+        <td><strong>${escapeHtml(e.fullName)}</strong></td>
+        <td>${escapeHtml(e.jobTitle) || '—'}</td>
+        <td>${escapeHtml(e.branchName) || '—'}</td>
+        <td><span class="badge ${e.currency === 'SAR' ? 'badge-amber' : 'badge-subtle-blue'} text-xs">${escapeHtml(e.currency)}</span></td>
+        <td>${escapeHtml(formatCurrency(base, e.currency))}</td>
         <td class="text-emerald">+${formatCurrency(allow, e.currency)}</td>
         <td class="text-rose">-${formatCurrency(ded, e.currency)}</td>
-        <td><strong>${formatCurrency(net, e.currency)}</strong></td>
+        <td><strong>${escapeHtml(formatCurrency(net, e.currency))}</strong></td>
         <td class="signature-cell">.....................</td>
       </tr>
     `;

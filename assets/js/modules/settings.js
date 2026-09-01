@@ -18,7 +18,7 @@ import { DEMO_SAMPLE_DATA } from '../data/initial-data.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
-import { generateId } from '../utils/helpers.js';
+import { generateId, escapeHtml } from '../utils/helpers.js';
 
 let currentEditingBranchId = null;
 
@@ -200,17 +200,17 @@ export async function renderBranchesList() {
     <div class="p-3 bg-slate-50 rounded border border-slate-200 flex justify-between items-center mb-2">
       <div>
         <div class="font-bold text-slate-800">
-          <i class="fa-solid fa-building text-cyan ml-1"></i> ${b.name}
+          <i class="fa-solid fa-building text-cyan ml-1"></i> ${escapeHtml(b.name)}
           ${b.isMain ? '<span class="badge badge-emerald text-xs mr-1">المركز الرئيسي</span>' : ''}
         </div>
-        <div class="text-xs text-muted">${b.city} • ${b.address || ''} • هاتف: ${b.phone || '—'}</div>
+        <div class="text-xs text-muted">${escapeHtml(b.city)} • ${escapeHtml(b.address) || ''} • هاتف: ${escapeHtml(b.phone) || '—'}</div>
       </div>
       <div class="flex gap-1">
-        <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-branch" data-id="${b.id}" title="تعديل الفرع">
+        <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-branch" data-id="${escapeHtml(b.id)}" title="تعديل الفرع">
           <i class="fa-solid fa-pen-to-square"></i>
         </button>
         ${!b.isMain ? `
-          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-branch" data-id="${b.id}" title="حذف الفرع">
+          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-branch" data-id="${escapeHtml(b.id)}" title="حذف الفرع">
             <i class="fa-solid fa-trash"></i>
           </button>
         ` : ''}

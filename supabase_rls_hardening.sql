@@ -31,6 +31,8 @@ DECLARE
         'salary_records',
         'documents',
         'audit_logs',
+        'contract_revisions',
+        'custody_transactions',
         'profiles'
     ];
 BEGIN

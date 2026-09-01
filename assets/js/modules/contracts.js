@@ -6,7 +6,7 @@ import { db } from '../core/db.js';
 import { CONTRACT_TYPES, CONTRACT_STATUSES } from '../data/constants.js';
 import { formatCurrency, formatDate, getDaysRemaining } from '../utils/formatters.js';
 import { validateContract } from '../utils/validators.js';
-import { generateId, deepClone } from '../utils/helpers.js';
+import { generateId, deepClone, escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
@@ -27,7 +27,7 @@ export async function renderContractFilters() {
   if (branchSelect) {
     const current = branchSelect.value;
     branchSelect.innerHTML = `<option value="">جميع الفروع</option>` +
-      branches.map(b => `<option value="${b.id}" ${current === b.id ? 'selected' : ''}>${b.name}</option>`).join('');
+      branches.map(b => `<option value="${escapeHtml(b.id)}" ${current === b.id ? 'selected' : ''}>${escapeHtml(b.name)}</option>`).join('');
   }
 }
 
@@ -110,40 +110,40 @@ export async function renderContractsList() {
     return `
       <tr>
         <td>
-          <div class="font-mono font-bold text-primary">${c.contractNumber}</div>
-          <div class="text-xs text-muted"><span class="badge badge-slate text-xs font-mono">v${c.version || '1.0'}</span> • ${formatDate(c.issueDate)}</div>
+          <div class="font-mono font-bold text-primary">${escapeHtml(c.contractNumber)}</div>
+          <div class="text-xs text-muted"><span class="badge badge-slate text-xs font-mono">v${escapeHtml(c.version) || '1.0'}</span> • ${escapeHtml(formatDate(c.issueDate))}</div>
         </td>
         <td>
-          <div class="font-bold text-slate-800">${c.employeeName}</div>
-          <div class="text-xs text-muted">${c.jobTitle || '—'}</div>
+          <div class="font-bold text-slate-800">${escapeHtml(c.employeeName)}</div>
+          <div class="text-xs text-muted">${escapeHtml(c.jobTitle) || '—'}</div>
         </td>
         <td>
-          <span class="badge badge-subtle-blue">${c.templateName || c.contractType}</span>
-          <div class="text-xs text-muted mt-1"><i class="fa-solid fa-building text-xs"></i> ${c.branchName || '—'}</div>
+          <span class="badge badge-subtle-blue">${escapeHtml(c.templateName || c.contractType)}</span>
+          <div class="text-xs text-muted mt-1"><i class="fa-solid fa-building text-xs"></i> ${escapeHtml(c.branchName) || '—'}</div>
         </td>
         <td>
-          <div class="text-sm">من: <strong>${formatDate(c.startDate)}</strong></div>
-          <div class="text-xs text-muted">إلى: ${c.endDate ? formatDate(c.endDate) : 'غير محدد'}</div>
+          <div class="text-sm">من: <strong>${escapeHtml(formatDate(c.startDate))}</strong></div>
+          <div class="text-xs text-muted">إلى: ${c.endDate ? escapeHtml(formatDate(c.endDate)) : 'غير محدد'}</div>
           ${expiryBadge}
         </td>
         <td>
-          <div class="font-bold text-slate-900">${netSalaryFormatted}</div>
-          <div class="text-xs text-muted">أساسي: ${formatCurrency(c.baseSalary, c.currency)}</div>
+          <div class="font-bold text-slate-900">${escapeHtml(netSalaryFormatted)}</div>
+          <div class="text-xs text-muted">أساسي: ${escapeHtml(formatCurrency(c.baseSalary, c.currency))}</div>
         </td>
         <td>
-          <span class="badge ${st.class}"><i class="fa-solid ${st.icon || 'fa-circle'} text-xs ml-1"></i> ${st.label}</span>
+          <span class="badge ${st.class}"><i class="fa-solid ${st.icon || 'fa-circle'} text-xs ml-1"></i> ${escapeHtml(st.label)}</span>
         </td>
         <td class="text-end table-actions">
-          <button class="btn btn-sm btn-icon btn-primary" data-action="view-contract-pdf" data-id="${c.id}" title="معاينة وطباعة العقد الرسمي">
+          <button class="btn btn-sm btn-icon btn-primary" data-action="view-contract-pdf" data-id="${escapeHtml(c.id)}" title="معاينة وطباعة العقد الرسمي">
             <i class="fa-solid fa-print"></i>
           </button>
-          <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-contract" data-id="${c.id}" title="تعديل العقد">
+          <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-contract" data-id="${escapeHtml(c.id)}" title="تعديل العقد">
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
-          <button class="btn btn-sm btn-icon btn-ghost" data-action="view-contract-revisions" data-id="${c.id}" title="سجل إصدارات العقد">
+          <button class="btn btn-sm btn-icon btn-ghost" data-action="view-contract-revisions" data-id="${escapeHtml(c.id)}" title="سجل إصدارات العقد">
             <i class="fa-solid fa-code-branch"></i>
           </button>
-          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-contract" data-id="${c.id}" title="حذف العقد">
+          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-contract" data-id="${escapeHtml(c.id)}" title="حذف العقد">
             <i class="fa-solid fa-trash"></i>
           </button>
         </td>
@@ -169,13 +169,13 @@ export async function openContractModal(contractId = null, prefilledEmployeeId =
   const branches = await db.getAll('branches');
 
   empSelect.innerHTML = `<option value="">-- اختر الموظف المتعاقد معه --</option>` +
-    employees.map(e => `<option value="${e.id}">${e.fullName} (${e.code} - ${e.jobTitle})</option>`).join('');
+    employees.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.fullName)} (${escapeHtml(e.code)} - ${escapeHtml(e.jobTitle)})</option>`).join('');
 
   tplSelect.innerHTML = `<option value="">-- اختر قالب العقد (أو عقد مخصص) --</option>` +
-    templates.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join('');
+    templates.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} (${escapeHtml(t.type)})</option>`).join('');
 
-  branchSelect.innerHTML = branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-  typeSelect.innerHTML = CONTRACT_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+  branchSelect.innerHTML = branches.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
+  typeSelect.innerHTML = CONTRACT_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
 
   if (contractId) {
     titleEl.innerHTML = `<i class="fa-solid fa-file-pen text-primary"></i> تعديل عقد العمل`;
@@ -332,7 +332,7 @@ export function renderContractClausesEditor() {
     <div class="embedded-clause-item flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-200 mb-2">
       <div class="flex items-center gap-2">
         <span class="badge badge-slate text-xs font-mono">${idx + 1}</span>
-        <strong class="text-sm text-slate-800">${clause.title}</strong>
+        <strong class="text-sm text-slate-800">${escapeHtml(clause.title)}</strong>
       </div>
       <div class="flex gap-1">
         <button type="button" class="btn btn-xs btn-icon btn-ghost" data-clause-idx="${idx}" data-action="embedded-clause-up" ${idx === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
@@ -399,7 +399,7 @@ export async function saveContractFromForm(e) {
 
   const validation = await validateContract(contractData, !!currentEditingContractId, currentEditingContractId);
   if (!validation.isValid) {
-    showToast(validation.errors.join('<br>'), 'error');
+    showToast(validation.errors.join(' • '), 'error');
     return;
   }
 
@@ -462,28 +462,28 @@ export async function viewContractRevisions(contractId) {
   const bodyEl = document.getElementById('contract-revisions-body');
   const titleEl = document.getElementById('contract-revisions-title');
 
-  titleEl.innerHTML = `<i class="fa-solid fa-code-branch text-primary"></i> سجل إصدارات العقد: <span class="font-mono">${contract.contractNumber}</span>`;
+  titleEl.innerHTML = `<i class="fa-solid fa-code-branch text-primary"></i> سجل إصدارات العقد: <span class="font-mono">${escapeHtml(contract.contractNumber)}</span>`;
 
   if (revisions.length === 0) {
     bodyEl.innerHTML = `
       <div class="empty-state-card text-center py-6 text-muted">
-        <p>لا توجد إصدارات سابقة مؤرشفة لهذا العقد (الإصدار الحالي: <strong>v${contract.version || '1.0'}</strong>).</p>
+        <p>لا توجد إصدارات سابقة مؤرشفة لهذا العقد (الإصدار الحالي: <strong>v${escapeHtml(contract.version) || '1.0'}</strong>).</p>
       </div>
     `;
   } else {
     bodyEl.innerHTML = `
       <div class="mb-4 p-3 bg-emerald-50 rounded border border-emerald-200 text-sm">
-        <strong class="text-emerald-800">الإصدار الحالي المعتمد:</strong> <span class="badge badge-emerald">v${contract.version || '1.0'}</span> • تاريخ التحديث: ${formatDate(contract.updatedAt || contract.createdAt)}
+        <strong class="text-emerald-800">الإصدار الحالي المعتمد:</strong> <span class="badge badge-emerald">v${escapeHtml(contract.version) || '1.0'}</span> • تاريخ التحديث: ${escapeHtml(formatDate(contract.updatedAt || contract.createdAt))}
       </div>
       <h4 class="font-bold text-slate-800 mb-2">الإصدارات السابقة المؤرشفة:</h4>
       <div class="space-y-3">
         ${revisions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(rev => `
           <div class="p-3 bg-slate-50 rounded border border-slate-200 flex justify-between items-center">
             <div>
-              <div class="font-bold text-slate-800">إصدار v${rev.version}</div>
-              <div class="text-xs text-muted">أرشف في: ${formatDate(rev.createdAt)} • السبب: ${rev.reason}</div>
+              <div class="font-bold text-slate-800">إصدار v${escapeHtml(rev.version)}</div>
+              <div class="text-xs text-muted">أرشف في: ${escapeHtml(formatDate(rev.createdAt))} • السبب: ${escapeHtml(rev.reason)}</div>
             </div>
-            <button class="btn btn-sm btn-outline" data-action="print-revision-snapshot" data-rev-id="${rev.id}">
+            <button class="btn btn-sm btn-outline" data-action="print-revision-snapshot" data-rev-id="${escapeHtml(rev.id)}">
               <i class="fa-solid fa-print ml-1"></i> معاينة هذا الإصدار
             </button>
           </div>

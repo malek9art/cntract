@@ -5,7 +5,7 @@
 import { db } from '../core/db.js';
 import { formatCurrency, formatDate, tafqeetArabic } from '../utils/formatters.js';
 import { validateEmployee } from '../utils/validators.js';
-import { generateId, readFileAsDataURL } from '../utils/helpers.js';
+import { generateId, readFileAsDataURL, escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
@@ -29,7 +29,7 @@ export async function renderEmployeeFilters() {
   if (branchSelect) {
     const current = branchSelect.value;
     branchSelect.innerHTML = `<option value="">جميع الفروع</option>` +
-      branches.map(b => `<option value="${b.id}" ${current === b.id ? 'selected' : ''}>${b.name}</option>`).join('');
+      branches.map(b => `<option value="${escapeHtml(b.id)}" ${current === b.id ? 'selected' : ''}>${escapeHtml(b.name)}</option>`).join('');
   }
 }
 
@@ -99,8 +99,8 @@ export async function renderEmployeesList() {
 
     const avatarInitial = emp.fullName ? emp.fullName.trim().charAt(0) : 'م';
     const avatarHtml = emp.photoUrl
-      ? `<img src="${emp.photoUrl}" alt="${emp.fullName}" class="employee-table-avatar-img" />`
-      : `<div class="employee-table-avatar-initial">${avatarInitial}</div>`;
+      ? `<img src="${escapeHtml(emp.photoUrl)}" alt="${escapeHtml(emp.fullName)}" class="employee-table-avatar-img" />`
+      : `<div class="employee-table-avatar-initial">${escapeHtml(avatarInitial)}</div>`;
 
     return `
       <tr>
@@ -108,18 +108,18 @@ export async function renderEmployeesList() {
           <div class="flex items-center gap-3">
             ${avatarHtml}
             <div>
-              <a href="javascript:void(0)" class="employee-link-name" data-action="view-employee" data-id="${emp.id}">${emp.fullName}</a>
-              <div class="text-xs text-muted font-mono">${emp.code}</div>
+              <a href="javascript:void(0)" class="employee-link-name" data-action="view-employee" data-id="${escapeHtml(emp.id)}">${escapeHtml(emp.fullName)}</a>
+              <div class="text-xs text-muted font-mono">${escapeHtml(emp.code)}</div>
             </div>
           </div>
         </td>
         <td>
-          <div class="font-medium text-slate-800">${emp.jobTitle || '—'}</div>
-          <div class="text-xs text-muted">${emp.department || '—'}</div>
+          <div class="font-medium text-slate-800">${escapeHtml(emp.jobTitle) || '—'}</div>
+          <div class="text-xs text-muted">${escapeHtml(emp.department) || '—'}</div>
         </td>
-        <td><i class="fa-solid fa-building text-xs text-muted ml-1"></i> ${emp.branchName || '—'}</td>
-        <td class="font-mono text-xs font-semibold">${emp.phone || '—'}</td>
-        <td><span class="badge ${st.class}">${st.label}</span></td>
+        <td><i class="fa-solid fa-building text-xs text-muted ml-1"></i> ${escapeHtml(emp.branchName) || '—'}</td>
+        <td class="font-mono text-xs font-semibold">${escapeHtml(emp.phone) || '—'}</td>
+        <td><span class="badge ${st.class}">${escapeHtml(st.label)}</span></td>
         <td>
           <div class="font-bold text-slate-900">${netSalaryFormatted}</div>
         </td>
@@ -130,13 +130,13 @@ export async function renderEmployeesList() {
           </div>
         </td>
         <td class="text-end table-actions">
-          <button class="btn btn-sm btn-icon btn-ghost" data-action="view-employee" data-id="${emp.id}" title="عرض ملف الموظف الكامل">
+          <button class="btn btn-sm btn-icon btn-ghost" data-action="view-employee" data-id="${escapeHtml(emp.id)}" title="عرض ملف الموظف الكامل">
             <i class="fa-solid fa-address-card text-primary"></i>
           </button>
-          <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-employee" data-id="${emp.id}" title="تعديل بيانات الموظف">
+          <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-employee" data-id="${escapeHtml(emp.id)}" title="تعديل بيانات الموظف">
             <i class="fa-solid fa-user-pen"></i>
           </button>
-          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-employee" data-id="${emp.id}" title="حذف الموظف">
+          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-employee" data-id="${escapeHtml(emp.id)}" title="حذف الموظف">
             <i class="fa-solid fa-trash"></i>
           </button>
         </td>
@@ -154,7 +154,7 @@ export async function openEmployeeFormModal(employeeId = null) {
 
   // Populate branch select options
   const branches = await db.getAll('branches');
-  branchSelect.innerHTML = branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+  branchSelect.innerHTML = branches.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
 
   if (employeeId) {
     titleEl.innerHTML = `<i class="fa-solid fa-user-pen text-primary"></i> تعديل بيانات الموظف`;
@@ -272,7 +272,7 @@ export async function saveEmployeeFromForm(event) {
 
   const validation = await validateEmployee(employeeData, !!currentEditingEmployeeId, currentEditingEmployeeId);
   if (!validation.isValid) {
-    showToast(validation.errors.join('<br>'), 'error');
+    showToast(validation.errors.join(' • '), 'error');
     return;
   }
 
@@ -331,7 +331,7 @@ export async function viewEmployeeProfile(employeeId) {
   if (nameEl) nameEl.textContent = emp.fullName;
   if (codeEl) codeEl.textContent = emp.code;
   if (jobEl) jobEl.textContent = `${emp.jobTitle} • ${emp.department || 'الشؤون الإدارية'}`;
-  if (branchEl) branchEl.innerHTML = `<i class="fa-solid fa-building"></i> ${emp.branchName}`;
+  if (branchEl) branchEl.innerHTML = `<i class="fa-solid fa-building"></i> ${escapeHtml(emp.branchName)}`;
 
   const statusMap = {
     active: { label: 'نشط على رأس العمل', class: 'badge-emerald' },
@@ -347,10 +347,10 @@ export async function viewEmployeeProfile(employeeId) {
 
   if (avatarEl) {
     if (emp.photoUrl) {
-      avatarEl.innerHTML = `<img src="${emp.photoUrl}" alt="${emp.fullName}" class="profile-avatar-img" />`;
+      avatarEl.innerHTML = `<img src="${escapeHtml(emp.photoUrl)}" alt="${escapeHtml(emp.fullName)}" class="profile-avatar-img" />`;
     } else {
       const initial = emp.fullName ? emp.fullName.trim().charAt(0) : 'م';
-      avatarEl.innerHTML = `<div class="profile-avatar-initial">${initial}</div>`;
+      avatarEl.innerHTML = `<div class="profile-avatar-initial">${escapeHtml(initial)}</div>`;
     }
   }
 
@@ -371,15 +371,15 @@ export async function viewEmployeeProfile(employeeId) {
           </div>
           <div class="card-body">
             <div class="detail-rows">
-              <div class="detail-row"><span>الاسم الرباعي:</span><strong>${emp.fullName}</strong></div>
-              <div class="detail-row"><span>رقم الهوية / الجواز:</span><strong class="font-mono">${emp.nationalId}</strong></div>
-              <div class="detail-row"><span>الجنسية:</span><strong>${emp.nationality || 'يمني'}</strong></div>
-              <div class="detail-row"><span>رقم الهاتف:</span><strong class="font-mono">${emp.phone}</strong></div>
-              <div class="detail-row"><span>العنوان:</span><strong>${emp.address || '—'}</strong></div>
+              <div class="detail-row"><span>الاسم الرباعي:</span><strong>${escapeHtml(emp.fullName)}</strong></div>
+              <div class="detail-row"><span>رقم الهوية / الجواز:</span><strong class="font-mono">${escapeHtml(emp.nationalId)}</strong></div>
+              <div class="detail-row"><span>الجنسية:</span><strong>${escapeHtml(emp.nationality) || 'يمني'}</strong></div>
+              <div class="detail-row"><span>رقم الهاتف:</span><strong class="font-mono">${escapeHtml(emp.phone)}</strong></div>
+              <div class="detail-row"><span>العنوان:</span><strong>${escapeHtml(emp.address) || '—'}</strong></div>
               <div class="detail-row"><span>تاريخ التعيين:</span><strong>${formatDate(emp.hireDate)}</strong></div>
-              <div class="detail-row"><span>نوع التوظيف:</span><strong>${emp.employmentType || 'دوام كامل'}</strong></div>
+              <div class="detail-row"><span>نوع التوظيف:</span><strong>${escapeHtml(emp.employmentType) || 'دوام كامل'}</strong></div>
               ${emp.endOfServiceDate ? `<div class="detail-row text-rose"><span>تاريخ انتهاء الخدمة:</span><strong>${formatDate(emp.endOfServiceDate)}</strong></div>` : ''}
-              <div class="detail-row"><span>ملاحظات إدارية:</span><div>${emp.notes || 'لا توجد ملاحظات مسجلة'}</div></div>
+              <div class="detail-row"><span>ملاحظات إدارية:</span><div>${escapeHtml(emp.notes) || 'لا توجد ملاحظات مسجلة'}</div></div>
             </div>
           </div>
         </div>
@@ -401,7 +401,7 @@ export async function viewEmployeeProfile(employeeId) {
               <div class="detail-row"><span>الراتب الأساسي:</span><strong>${baseFormatted}</strong></div>
               <div class="detail-row"><span>إجمالي البدلات:</span><strong class="text-emerald">+ ${allowFormatted}</strong></div>
               <div class="detail-row"><span>إجمالي الخصومات:</span><strong class="text-rose">- ${dedFormatted}</strong></div>
-              <div class="detail-row"><span>عملة الراتب:</span><strong class="badge badge-subtle-blue">${emp.currency === 'SAR' ? 'الريال السعودي (SAR)' : 'الريال اليمني (YER)'}</strong></div>
+              <div class="detail-row"><span>عملة الراتب:</span><strong class="badge badge-subtle-blue">${escapeHtml(emp.currency) === 'SAR' ? 'الريال السعودي (SAR)' : 'الريال اليمني (YER)'}</strong></div>
             </div>
           </div>
         </div>
@@ -417,7 +417,7 @@ export async function viewEmployeeProfile(employeeId) {
       contractsContainer.innerHTML = `
         <div class="empty-state-card text-center py-6">
           <p class="text-muted mb-3">لا توجد عقود مسجلة لهذا الموظف حتى الآن.</p>
-          <button class="btn btn-sm btn-primary" data-action="new-contract-for-emp" data-id="${emp.id}">
+          <button class="btn btn-sm btn-primary" data-action="new-contract-for-emp" data-id="${escapeHtml(emp.id)}">
             <i class="fa-solid fa-plus ml-1"></i> إنشاء عقد جديد لهذا الموظف
           </button>
         </div>
@@ -426,7 +426,7 @@ export async function viewEmployeeProfile(employeeId) {
       contractsContainer.innerHTML = `
         <div class="flex justify-between items-center mb-4">
           <h4 class="font-bold text-slate-800">عقود العمل الصادرة للموظف (${contracts.length})</h4>
-          <button class="btn btn-sm btn-outline" data-action="new-contract-for-emp" data-id="${emp.id}">
+          <button class="btn btn-sm btn-outline" data-action="new-contract-for-emp" data-id="${escapeHtml(emp.id)}">
             <i class="fa-solid fa-plus ml-1"></i> إضافة عقد جديد
           </button>
         </div>
@@ -447,18 +447,18 @@ export async function viewEmployeeProfile(employeeId) {
             <tbody>
               ${contracts.map(c => `
                 <tr>
-                  <td class="font-mono font-bold text-primary">${c.contractNumber}</td>
-                  <td>${c.templateName || c.contractType}</td>
+                  <td class="font-mono font-bold text-primary">${escapeHtml(c.contractNumber)}</td>
+                  <td>${escapeHtml(c.templateName || c.contractType)}</td>
                   <td>${formatDate(c.startDate)}</td>
                   <td>${c.endDate ? formatDate(c.endDate) : 'غير محدد'}</td>
-                  <td>${formatCurrency(c.netSalary || c.baseSalary, c.currency)}</td>
-                  <td><span class="badge ${c.status === 'approved' ? 'badge-emerald' : c.status === 'expired' ? 'badge-rose' : 'badge-amber'}">${c.status === 'approved' ? 'معتمد' : c.status}</span></td>
+                  <td>${escapeHtml(formatCurrency(c.netSalary || c.baseSalary, c.currency))}</td>
+                  <td><span class="badge ${c.status === 'approved' ? 'badge-emerald' : c.status === 'expired' ? 'badge-rose' : 'badge-amber'}">${c.status === 'approved' ? 'معتمد' : escapeHtml(c.status)}</span></td>
                   <td><span class="badge badge-slate">v${c.version || '1.0'}</span></td>
                   <td class="text-end table-actions">
-                    <button class="btn btn-sm btn-icon btn-ghost" data-action="view-contract-pdf" data-id="${c.id}" title="معاينة وطباعة">
+                    <button class="btn btn-sm btn-icon btn-ghost" data-action="view-contract-pdf" data-id="${escapeHtml(c.id)}" title="معاينة وطباعة">
                       <i class="fa-solid fa-print"></i>
                     </button>
-                    <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-contract" data-id="${c.id}" title="تعديل">
+                    <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-contract" data-id="${escapeHtml(c.id)}" title="تعديل">
                       <i class="fa-solid fa-pen-to-square"></i>
                     </button>
                   </td>
@@ -508,14 +508,14 @@ export async function viewEmployeeProfile(employeeId) {
             <tbody>
               ${custodies.map(c => `
                 <tr>
-                  <td class="font-mono font-bold">${c.code}</td>
-                  <td><span class="badge badge-subtle-cyan">${c.type}</span></td>
-                  <td><strong>${c.name}</strong><div class="text-xs text-muted">${c.brand || ''} ${c.model || ''}</div></td>
-                  <td class="font-mono text-xs">${c.serialNumber || '—'}</td>
+                  <td class="font-mono font-bold">${escapeHtml(c.code)}</td>
+                  <td><span class="badge badge-subtle-cyan">${escapeHtml(c.type)}</span></td>
+                  <td><strong>${escapeHtml(c.name)}</strong><div class="text-xs text-muted">${escapeHtml(c.brand) || ''} ${escapeHtml(c.model) || ''}</div></td>
+                  <td class="font-mono text-xs">${escapeHtml(c.serialNumber) || '—'}</td>
                   <td>${formatDate(c.handoverDate)}</td>
-                  <td><span class="badge badge-emerald">${c.condition || 'سليم'}</span></td>
+                  <td><span class="badge badge-emerald">${escapeHtml(c.condition) || 'سليم'}</span></td>
                   <td class="text-end table-actions">
-                    <button class="btn btn-sm btn-outline text-cyan" data-action="return-custody-modal" data-id="${c.id}" title="إرجاع العهدة">
+                    <button class="btn btn-sm btn-outline text-cyan" data-action="return-custody-modal" data-id="${escapeHtml(c.id)}" title="إرجاع العهدة">
                       <i class="fa-solid fa-rotate-left ml-1"></i> إرجاع
                     </button>
                   </td>
@@ -539,19 +539,19 @@ export async function viewEmployeeProfile(employeeId) {
         <div class="card mb-4 border border-cyan-200">
           <div class="card-header flex justify-between items-center bg-cyan-50/50">
             <div>
-              <h4 class="font-bold text-slate-800"><i class="fa-solid fa-car text-cyan"></i> ${v.brand} ${v.model} (${v.year})</h4>
-              <span class="badge-plate mt-1">${v.plateNumber}</span>
+              <h4 class="font-bold text-slate-800"><i class="fa-solid fa-car text-cyan"></i> ${escapeHtml(v.brand)} ${escapeHtml(v.model)} (${escapeHtml(v.year)})</h4>
+              <span class="badge-plate mt-1">${escapeHtml(v.plateNumber)}</span>
             </div>
-            <button class="btn btn-sm btn-outline" data-action="inspect-return-vehicle" data-id="${v.id}">
+            <button class="btn btn-sm btn-outline" data-action="inspect-return-vehicle" data-id="${escapeHtml(v.id)}">
               <i class="fa-solid fa-rotate-left ml-1"></i> إرجاع وفحص السيارة
             </button>
           </div>
           <div class="card-body">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div><span class="text-muted block text-xs">رقم الشاصي:</span><strong class="font-mono">${v.chassisNumber}</strong></div>
-              <div><span class="text-muted block text-xs">قراءة العداد:</span><strong>${v.odometer.toLocaleString()} كم</strong></div>
-              <div><span class="text-muted block text-xs">مستوى الوقود:</span><strong>${v.fuelLevel}</strong></div>
-              <div><span class="text-muted block text-xs">حالة الهيكل:</span><strong class="text-emerald">${v.bodyCondition}</strong></div>
+              <div><span class="text-muted block text-xs">رقم الشاصي:</span><strong class="font-mono">${escapeHtml(v.chassisNumber)}</strong></div>
+              <div><span class="text-muted block text-xs">قراءة العداد:</span><strong>${escapeHtml(v.odometer.toLocaleString())} كم</strong></div>
+              <div><span class="text-muted block text-xs">مستوى الوقود:</span><strong>${escapeHtml(v.fuelLevel)}</strong></div>
+              <div><span class="text-muted block text-xs">حالة الهيكل:</span><strong class="text-emerald">${escapeHtml(v.bodyCondition)}</strong></div>
             </div>
           </div>
         </div>
@@ -581,12 +581,12 @@ export async function viewEmployeeProfile(employeeId) {
             <tbody>
               ${vouchers.map(v => `
                 <tr>
-                  <td class="font-mono font-bold">${v.voucherNumber}</td>
+                  <td class="font-mono font-bold">${escapeHtml(v.voucherNumber)}</td>
                   <td><span class="badge ${v.type === 'handover' ? 'badge-blue' : 'badge-emerald'}">${v.type === 'handover' ? 'محضر استلام عهدة' : 'محضر إرجاع عهدة'}</span></td>
                   <td>${formatDate(v.date)}</td>
-                  <td>${v.items ? v.items.map(i => i.name).join('، ') : '—'}</td>
+                  <td>${v.items ? v.items.map(i => escapeHtml(i.name)).join('، ') : '—'}</td>
                   <td class="text-end">
-                    <button class="btn btn-sm btn-icon btn-ghost" data-action="view-voucher-pdf" data-id="${v.id}">
+                    <button class="btn btn-sm btn-icon btn-ghost" data-action="view-voucher-pdf" data-id="${escapeHtml(v.id)}">
                       <i class="fa-solid fa-print"></i>
                     </button>
                   </td>
@@ -610,9 +610,9 @@ export async function viewEmployeeProfile(employeeId) {
         <div class="activity-timeline-item">
           <div class="activity-icon-bullet"><i class="fa-solid fa-circle-dot"></i></div>
           <div class="activity-content">
-            <div class="activity-title"><span class="activity-action-tag">${l.action}</span> <span>${l.module}</span></div>
-            <p class="activity-desc">${l.description}</p>
-            <div class="activity-time">${formatDate(l.timestamp)} • ${l.user}</div>
+            <div class="activity-title"><span class="activity-action-tag">${escapeHtml(l.action)}</span> <span>${escapeHtml(l.module)}</span></div>
+            <p class="activity-desc">${escapeHtml(l.description)}</p>
+            <div class="activity-time">${escapeHtml(formatDate(l.timestamp))} • ${escapeHtml(l.user)}</div>
           </div>
         </div>
       `).join('');

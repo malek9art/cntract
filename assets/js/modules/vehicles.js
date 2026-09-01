@@ -6,7 +6,7 @@ import { db } from '../core/db.js';
 import { VEHICLE_CONDITIONS, FUEL_LEVELS } from '../data/constants.js';
 import { formatDate } from '../utils/formatters.js';
 import { VEHICLE_INSPECTION_ITEMS, createDefaultInspectionSheet } from '../services/vehicle-service.js';
-import { generateId } from '../utils/helpers.js';
+import { generateId, escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
@@ -58,43 +58,43 @@ export async function renderVehiclesList() {
         <div class="card-header flex justify-between items-start">
           <div>
             <span class="badge ${isDelivered ? 'badge-emerald' : 'badge-slate'} mb-1">${isDelivered ? 'مسلّمة لموظف' : 'متاحة بالمقر'}</span>
-            <h3 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-car text-cyan ml-1"></i> ${v.brand} ${v.model} (${v.year})</h3>
+            <h3 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-car text-cyan ml-1"></i> ${escapeHtml(v.brand)} ${escapeHtml(v.model)} (${escapeHtml(v.year)})</h3>
           </div>
-          <span class="badge-plate">${v.plateNumber}</span>
+          <span class="badge-plate">${escapeHtml(v.plateNumber)}</span>
         </div>
         <div class="card-body">
           <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded">
-            <div><span class="text-muted block">الفرع:</span> <strong>${v.branchName || 'المركز الرئيسي'}</strong></div>
-            <div><span class="text-muted block">العداد:</span> <strong class="font-mono font-bold">${v.odometer.toLocaleString()} كم</strong></div>
-            <div><span class="text-muted block">مستوى الوقود:</span> <strong>${v.fuelLevel}</strong></div>
-            <div><span class="text-muted block">حالة الهيكل:</span> <strong class="text-emerald">${v.bodyCondition}</strong></div>
-            <div class="col-span-2"><span class="text-muted block">رقم الشاصي:</span> <strong class="font-mono text-slate-800">${v.chassisNumber}</strong></div>
+            <div><span class="text-muted block">الفرع:</span> <strong>${escapeHtml(v.branchName) || 'المركز الرئيسي'}</strong></div>
+            <div><span class="text-muted block">العداد:</span> <strong class="font-mono font-bold">${escapeHtml(v.odometer.toLocaleString())} كم</strong></div>
+            <div><span class="text-muted block">مستوى الوقود:</span> <strong>${escapeHtml(v.fuelLevel)}</strong></div>
+            <div><span class="text-muted block">حالة الهيكل:</span> <strong class="text-emerald">${escapeHtml(v.bodyCondition)}</strong></div>
+            <div class="col-span-2"><span class="text-muted block">رقم الشاصي:</span> <strong class="font-mono text-slate-800">${escapeHtml(v.chassisNumber)}</strong></div>
           </div>
 
           <div class="vehicle-assignment-box p-3 rounded ${isDelivered ? 'bg-cyan-50 border border-cyan-100' : 'bg-slate-100'} mb-4">
             <div class="text-xs text-muted mb-1">${isDelivered ? 'الموظف المستلم حالياً:' : 'حالة التكليف:'}</div>
-            <div class="font-bold text-slate-800">${isDelivered ? v.assignedEmployeeName : 'المركبة جاهزة للتسليم في كراج الشركة'}</div>
-            ${isDelivered && v.handoverDate ? `<div class="text-xs text-slate-500 mt-1">تاريخ التسليم: ${formatDate(v.handoverDate)}</div>` : ''}
+            <div class="font-bold text-slate-800">${isDelivered ? escapeHtml(v.assignedEmployeeName) : 'المركبة جاهزة للتسليم في كراج الشركة'}</div>
+            ${isDelivered && v.handoverDate ? `<div class="text-xs text-slate-500 mt-1">تاريخ التسليم: ${escapeHtml(formatDate(v.handoverDate))}</div>` : ''}
           </div>
 
           <div class="flex justify-between items-center pt-3 border-t border-slate-100">
             ${isDelivered ? `
-              <button class="btn btn-sm btn-outline text-cyan" data-action="inspect-return-vehicle" data-id="${v.id}">
+              <button class="btn btn-sm btn-outline text-cyan" data-action="inspect-return-vehicle" data-id="${escapeHtml(v.id)}">
                 <i class="fa-solid fa-rotate-left ml-1"></i> فحص وإرجاع
               </button>
             ` : `
-              <button class="btn btn-sm btn-primary" data-action="inspect-handover-vehicle" data-id="${v.id}">
+              <button class="btn btn-sm btn-primary" data-action="inspect-handover-vehicle" data-id="${escapeHtml(v.id)}">
                 <i class="fa-solid fa-key ml-1"></i> فحص وتسليم
               </button>
             `}
             <div class="flex gap-1">
-              <button class="btn btn-sm btn-icon btn-ghost" data-action="print-vehicle-sheet" data-id="${v.id}" title="طباعة بطاقة فحص المركبة">
+              <button class="btn btn-sm btn-icon btn-ghost" data-action="print-vehicle-sheet" data-id="${escapeHtml(v.id)}" title="طباعة بطاقة فحص المركبة">
                 <i class="fa-solid fa-print"></i>
               </button>
-              <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-vehicle" data-id="${v.id}" title="تعديل بيانات المركبة">
+              <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-vehicle" data-id="${escapeHtml(v.id)}" title="تعديل بيانات المركبة">
                 <i class="fa-solid fa-pen-to-square"></i>
               </button>
-              <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-vehicle" data-id="${v.id}" title="حذف المركبة">
+              <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-vehicle" data-id="${escapeHtml(v.id)}" title="حذف المركبة">
                 <i class="fa-solid fa-trash"></i>
               </button>
             </div>
@@ -116,9 +116,9 @@ export async function openVehicleModal(vehicleId = null) {
   const fuelSelect = document.getElementById('veh-form-fuel');
 
   const branches = await db.getAll('branches');
-  branchSelect.innerHTML = branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-  condSelect.innerHTML = VEHICLE_CONDITIONS.map(c => `<option value="${c}">${c}</option>`).join('');
-  fuelSelect.innerHTML = FUEL_LEVELS.map(f => `<option value="${f}">${f}</option>`).join('');
+  branchSelect.innerHTML = branches.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
+  condSelect.innerHTML = VEHICLE_CONDITIONS.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  fuelSelect.innerHTML = FUEL_LEVELS.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
 
   if (vehicleId) {
     titleEl.innerHTML = `<i class="fa-solid fa-car text-primary"></i> تعديل بيانات السيارة`;
@@ -241,12 +241,12 @@ export async function openVehicleInspectionModal(vehicleId, type = 'handover') {
   const checklistContainer = document.getElementById('veh-inspection-checklist-rows');
   const form = document.getElementById('vehicle-inspection-form');
 
-  titleEl.innerHTML = `<i class="fa-solid fa-clipboard-check text-primary"></i> ${type === 'handover' ? 'محضر فحص وتسليم مركبة' : 'محضر فحص واستلام مركبة معادة'}: <strong>${vehicle.brand} ${vehicle.model} (${vehicle.plateNumber})</strong>`;
+  titleEl.innerHTML = `<i class="fa-solid fa-clipboard-check text-primary"></i> ${type === 'handover' ? 'محضر فحص وتسليم مركبة' : 'محضر فحص واستلام مركبة معادة'}: <strong>${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)} (${escapeHtml(vehicle.plateNumber)})</strong>`;
 
   const employees = await db.getAll('employees');
   const activeEmployees = employees.filter(e => e.status === 'active');
   empSelect.innerHTML = `<option value="">-- اختر الموظف --</option>` +
-    activeEmployees.map(e => `<option value="${e.id}" ${vehicle.assignedEmployeeId === e.id ? 'selected' : ''}>${e.fullName} (${e.code} - ${e.jobTitle})</option>`).join('');
+    activeEmployees.map(e => `<option value="${escapeHtml(e.id)}" ${vehicle.assignedEmployeeId === e.id ? 'selected' : ''}>${escapeHtml(e.fullName)} (${escapeHtml(e.code)} - ${escapeHtml(e.jobTitle)})</option>`).join('');
 
   if (type === 'return') {
     empSelect.value = vehicle.assignedEmployeeId || '';
@@ -260,11 +260,11 @@ export async function openVehicleInspectionModal(vehicleId, type = 'handover') {
 
   // Render Checklist
   checklistContainer.innerHTML = VEHICLE_INSPECTION_ITEMS.map((item, index) => `
-    <tr class="inspection-row" data-key="${item.label}">
+    <tr class="inspection-row" data-key="${escapeHtml(item.label)}">
       <td class="text-center font-mono text-xs">${index + 1}</td>
       <td>
-        <strong>${item.label}</strong>
-        <span class="text-xs text-muted block">${item.category}</span>
+        <strong>${escapeHtml(item.label)}</strong>
+        <span class="text-xs text-muted block">${escapeHtml(item.category)}</span>
       </td>
       <td>
         <select class="form-select form-select-sm inspect-status-select" name="item_status_${index}">

@@ -6,6 +6,7 @@ import { db } from '../core/db.js';
 import { formatCurrency, formatDate, getDaysRemaining } from '../utils/formatters.js';
 import { previewAndPrintDocument, renderDocumentHeader, renderDocumentFooter, renderSignatureBlock } from '../services/pdf-service.js';
 import { showToast } from '../ui/toast.js';
+import { escapeHtml } from '../utils/helpers.js';
 
 let currentSelectedReport = 'active_contracts';
 
@@ -113,13 +114,13 @@ function renderActiveContractsReport(container, contracts, employees) {
         <tbody>
           ${active.map(c => `
             <tr>
-              <td class="font-mono font-bold text-primary">${c.contractNumber}</td>
-              <td><strong>${c.employeeName}</strong></td>
-              <td>${c.jobTitle || '—'}</td>
-              <td>${c.branchName || '—'}</td>
-              <td>${formatDate(c.startDate)}</td>
-              <td>${c.endDate ? formatDate(c.endDate) : 'غير محدد'}</td>
-              <td><strong>${formatCurrency(c.netSalary || c.baseSalary, c.currency)}</strong></td>
+              <td class="font-mono font-bold text-primary">${escapeHtml(c.contractNumber)}</td>
+              <td><strong>${escapeHtml(c.employeeName)}</strong></td>
+              <td>${escapeHtml(c.jobTitle) || '—'}</td>
+              <td>${escapeHtml(c.branchName) || '—'}</td>
+              <td>${escapeHtml(formatDate(c.startDate))}</td>
+              <td>${c.endDate ? escapeHtml(formatDate(c.endDate)) : 'غير محدد'}</td>
+              <td><strong>${escapeHtml(formatCurrency(c.netSalary || c.baseSalary, c.currency))}</strong></td>
             </tr>
           `).join('')}
         </tbody>
@@ -174,12 +175,12 @@ function renderExpiringContractsReport(container, contracts, employees) {
             const badgeCls = days <= 30 ? 'badge-rose' : days <= 60 ? 'badge-amber' : 'badge-blue';
             return `
               <tr>
-                <td class="font-mono font-bold">${c.contractNumber}</td>
-                <td><strong>${c.employeeName}</strong></td>
-                <td>${c.branchName}</td>
-                <td>${c.jobTitle}</td>
-                <td>${formatDate(c.endDate)}</td>
-                <td><span class="badge ${badgeCls}">متبقي ${days} يوم</span></td>
+                <td class="font-mono font-bold">${escapeHtml(c.contractNumber)}</td>
+                <td><strong>${escapeHtml(c.employeeName)}</strong></td>
+                <td>${escapeHtml(c.branchName)}</td>
+                <td>${escapeHtml(c.jobTitle)}</td>
+                <td>${escapeHtml(formatDate(c.endDate))}</td>
+                <td><span class="badge ${badgeCls}">متبقي ${escapeHtml(days)} يوم</span></td>
                 <td><span class="text-xs font-semibold ${days <= 30 ? 'text-rose' : 'text-amber'}">إعداد ملحق التجديد أو إنهاء العقد</span></td>
               </tr>
             `;
@@ -225,11 +226,11 @@ function renderExpiredContractsReport(container, contracts, employees) {
             const days = Math.abs(getDaysRemaining(c.endDate) || 0);
             return `
               <tr>
-                <td class="font-mono font-bold">${c.contractNumber}</td>
-                <td><strong>${c.employeeName}</strong></td>
-                <td>${c.branchName}</td>
-                <td>${formatDate(c.endDate)}</td>
-                <td><span class="badge badge-rose">منتهي منذ ${days} يوم</span></td>
+                <td class="font-mono font-bold">${escapeHtml(c.contractNumber)}</td>
+                <td><strong>${escapeHtml(c.employeeName)}</strong></td>
+                <td>${escapeHtml(c.branchName)}</td>
+                <td>${escapeHtml(formatDate(c.endDate))}</td>
+                <td><span class="badge badge-rose">منتهي منذ ${escapeHtml(days)} يوم</span></td>
                 <td><span class="badge badge-slate">مطلوب تجديد أو مخالصة عهد</span></td>
               </tr>
             `;
@@ -267,13 +268,13 @@ function renderCustodiesByEmployeeReport(container, custodies, employees) {
         <tbody>
           ${delivered.map(c => `
             <tr>
-              <td><strong>${c.employeeName}</strong></td>
-              <td class="font-mono font-bold text-primary">${c.code}</td>
-              <td>${c.name}</td>
-              <td><span class="badge badge-subtle-cyan">${c.type}</span></td>
-              <td class="font-mono text-xs">${c.serialNumber || '—'}</td>
-              <td>${formatDate(c.handoverDate)}</td>
-              <td><span class="badge badge-emerald">${c.condition || 'سليم'}</span></td>
+              <td><strong>${escapeHtml(c.employeeName)}</strong></td>
+              <td class="font-mono font-bold text-primary">${escapeHtml(c.code)}</td>
+              <td>${escapeHtml(c.name)}</td>
+              <td><span class="badge badge-subtle-cyan">${escapeHtml(c.type)}</span></td>
+              <td class="font-mono text-xs">${escapeHtml(c.serialNumber) || '—'}</td>
+              <td>${escapeHtml(formatDate(c.handoverDate))}</td>
+              <td><span class="badge badge-emerald">${escapeHtml(c.condition) || 'سليم'}</span></td>
             </tr>
           `).join('')}
         </tbody>
@@ -304,7 +305,7 @@ function renderCustodiesByBranchReport(container, custodies, branches) {
 
             return `
               <tr>
-                <td><strong><i class="fa-solid fa-building text-cyan ml-1"></i> ${b.name}</strong></td>
+                <td><strong><i class="fa-solid fa-building text-cyan ml-1"></i> ${escapeHtml(b.name)}</strong></td>
                 <td><span class="badge badge-subtle-blue font-bold">${bCust.length}</span></td>
                 <td><span class="badge badge-emerald">${bDelivered}</span></td>
                 <td><span class="badge badge-slate">${bAvailable}</span></td>
@@ -345,13 +346,13 @@ function renderDamagedLostCustodiesReport(container, custodies) {
         <tbody>
           ${issues.length === 0 ? '<tr><td colspan="7" class="text-center py-6 text-emerald font-bold">لا توجد عهد مفقودة أو متضررة حالياً بحمد الله.</td></tr>' : issues.map(c => `
             <tr>
-              <td class="font-mono font-bold">${c.code}</td>
-              <td><strong>${c.name}</strong></td>
-              <td>${c.type}</td>
-              <td>${c.branchName}</td>
+              <td class="font-mono font-bold">${escapeHtml(c.code)}</td>
+              <td><strong>${escapeHtml(c.name)}</strong></td>
+              <td>${escapeHtml(c.type)}</td>
+              <td>${escapeHtml(c.branchName)}</td>
               <td><span class="badge ${c.status === 'lost' ? 'badge-red' : c.status === 'damaged' ? 'badge-rose' : 'badge-amber'}">${c.status === 'lost' ? 'مفقودة' : c.status === 'damaged' ? 'متضررة' : 'تحت الصيانة'}</span></td>
-              <td>${formatCurrency(c.estimatedValue, c.currency || 'YER')}</td>
-              <td class="text-xs text-slate-600">${c.notes || '—'}</td>
+              <td>${escapeHtml(formatCurrency(c.estimatedValue, c.currency || 'YER'))}</td>
+              <td class="text-xs text-slate-600">${escapeHtml(c.notes) || '—'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -380,13 +381,13 @@ function renderDeliveredVehiclesReport(container, vehicles, employees) {
         <tbody>
           ${delivered.map(v => `
             <tr>
-              <td><span class="badge-plate">${v.plateNumber}</span></td>
-              <td><strong>${v.brand} ${v.model} (${v.year})</strong></td>
-              <td><strong>${v.assignedEmployeeName}</strong></td>
-              <td>${v.branchName}</td>
-              <td class="font-mono">${v.odometer.toLocaleString()} كم</td>
-              <td>${v.fuelLevel}</td>
-              <td><span class="badge badge-emerald">${v.bodyCondition}</span></td>
+              <td><span class="badge-plate">${escapeHtml(v.plateNumber)}</span></td>
+              <td><strong>${escapeHtml(v.brand)} ${escapeHtml(v.model)} (${escapeHtml(v.year)})</strong></td>
+              <td><strong>${escapeHtml(v.assignedEmployeeName)}</strong></td>
+              <td>${escapeHtml(v.branchName)}</td>
+              <td class="font-mono">${escapeHtml(v.odometer.toLocaleString())} كم</td>
+              <td>${escapeHtml(v.fuelLevel)}</td>
+              <td><span class="badge badge-emerald">${escapeHtml(v.bodyCondition)}</span></td>
             </tr>
           `).join('')}
         </tbody>
@@ -407,13 +408,13 @@ function renderSalariesByCurrencyReport(container, employees) {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <div class="card p-4 border-2 border-primary/30">
         <h4 class="font-bold text-primary text-lg mb-2"><i class="fa-solid fa-coins"></i> مسير الرواتب بالريال اليمني (YER)</h4>
-        <div class="text-3xl font-black text-slate-900 mb-2">${formatCurrency(totalNetYER, 'YER')}</div>
+        <div class="text-3xl font-black text-slate-900 mb-2">${escapeHtml(formatCurrency(totalNetYER, 'YER'))}</div>
         <div class="text-sm text-muted">عدد الموظفين: <strong>${yerEmps.length} موظف</strong></div>
       </div>
 
       <div class="card p-4 border-2 border-amber-300">
         <h4 class="font-bold text-amber-700 text-lg mb-2"><i class="fa-solid fa-money-bill-transfer"></i> مسير الرواتب بالريال السعودي (SAR)</h4>
-        <div class="text-3xl font-black text-slate-900 mb-2">${formatCurrency(totalNetSAR, 'SAR')}</div>
+        <div class="text-3xl font-black text-slate-900 mb-2">${escapeHtml(formatCurrency(totalNetSAR, 'SAR'))}</div>
         <div class="text-sm text-muted">عدد الموظفين: <strong>${sarEmps.length} موظف</strong></div>
       </div>
     </div>
@@ -437,12 +438,12 @@ function renderCustodyMovementReport(container, transactions) {
         <tbody>
           ${transactions.sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)).map(tx => `
             <tr>
-              <td>${formatDate(tx.date || tx.timestamp)}</td>
+              <td>${escapeHtml(formatDate(tx.date || tx.timestamp))}</td>
               <td><span class="badge ${tx.type === 'handover' ? 'badge-blue' : 'badge-emerald'}">${tx.type === 'handover' ? 'تسليم' : 'إرجاع'}</span></td>
-              <td><strong>${tx.custodyName}</strong></td>
-              <td>${tx.employeeName || '—'}</td>
-              <td class="font-mono text-xs">${tx.voucherNumber || '—'}</td>
-              <td class="text-xs">${tx.notes || '—'}</td>
+              <td><strong>${escapeHtml(tx.custodyName)}</strong></td>
+              <td>${escapeHtml(tx.employeeName) || '—'}</td>
+              <td class="font-mono text-xs">${escapeHtml(tx.voucherNumber) || '—'}</td>
+              <td class="text-xs">${escapeHtml(tx.notes) || '—'}</td>
             </tr>
           `).join('')}
         </tbody>

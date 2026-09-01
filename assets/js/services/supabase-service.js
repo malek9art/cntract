@@ -8,6 +8,80 @@ import { logAudit } from '../core/audit.js';
 
 let supabaseClient = null;
 
+/**
+ * قائمة البريد الإلكتروني المسموح لها بتسجيل الدخول حصرياً.
+ * القرار: البريد المصادق الوحيد هو حساب الإدارة العام.
+ */
+export const ALLOWED_SIGNIN_EMAILS = ['abuhdyfh@gmail.com'];
+
+export function isAllowedEmail(email) {
+  const clean = String(email || '').trim().toLowerCase();
+  return ALLOWED_SIGNIN_EMAILS.includes(clean);
+}
+
+/**
+ * جداول المزامنة السحابية (رفع + سحب).
+ * يجب أن تطابق الجداول المعرفة في supabase_schema.sql.
+ */
+export const CLOUD_SYNC_TABLES = [
+  'settings',
+  'branches',
+  'contract_clauses',
+  'contract_templates',
+  'employees',
+  'contracts',
+  'custodies',
+  'vehicles',
+  'vouchers',
+  'salary_records',
+  'documents',
+  'audit_logs',
+  'contract_revisions',
+  'custody_transactions'
+];
+
+/**
+ * قائمة الأعمدة المصرح بوجودها في كل جدول سحابي.
+ * تُستخدم لتهذيب الصفوف المحلية قبل الإرسال حتى لا تفشل المزامنة
+ * بسبب حقول محلية غير موجودة في مخطط Supabase.
+ */
+const CLOUD_COLUMNS = {
+  settings: ['id', 'companyName', 'companyNameEn', 'firstPartyName', 'firstPartyRepName', 'firstPartyRepRole', 'commercialRegister', 'taxNumber', 'centralBankLicense', 'headquarters', 'phone', 'phoneSecondary', 'email', 'logoUrl', 'stampUrl', 'defaultProbationPeriod', 'defaultWorkingHours', 'defaultWorkingDays', 'defaultNoticePeriod', 'legalDisclaimer', 'requireAuthOnStart', 'supabaseConfig', 'createdAt', 'updatedAt'],
+  branches: ['id', 'code', 'name', 'city', 'address', 'phone', 'isMain', 'active', 'createdAt', 'updatedAt'],
+  contract_clauses: ['id', 'order', 'numberText', 'title', 'content', 'isMandatory', 'isActive', 'createdAt', 'updatedAt'],
+  contract_templates: ['id', 'name', 'type', 'description', 'clauseIds', 'defaultProbation', 'defaultHours', 'defaultDays', 'defaultNotice', 'isDefault', 'isActive', 'createdAt', 'updatedAt'],
+  employees: ['id', 'code', 'fullName', 'nationalId', 'phone', 'address', 'nationality', 'jobTitle', 'department', 'branchId', 'branchName', 'hireDate', 'employmentType', 'status', 'endOfServiceDate', 'baseSalary', 'allowances', 'deductions', 'netSalary', 'currency', 'notes', 'photoUrl', 'createdAt', 'updatedAt'],
+  contracts: ['id', 'contractNumber', 'employeeId', 'employeeName', 'templateId', 'templateName', 'contractType', 'status', 'version', 'revisionCount', 'issueDate', 'startDate', 'endDate', 'duration', 'jobTitle', 'department', 'branchId', 'branchName', 'workplace', 'baseSalary', 'allowances', 'deductions', 'netSalary', 'currency', 'probationPeriod', 'workingHours', 'workingDays', 'noticePeriod', 'notes', 'clauses', 'approvedBy', 'approvedAt', 'createdAt', 'updatedAt'],
+  custodies: ['id', 'code', 'type', 'name', 'brand', 'model', 'serialNumber', 'color', 'estimatedValue', 'currency', 'branchId', 'branchName', 'status', 'employeeId', 'employeeName', 'handoverDate', 'purchaseDate', 'condition', 'notes', 'imageUrl', 'createdAt', 'updatedAt'],
+  vehicles: ['id', 'code', 'type', 'brand', 'model', 'year', 'plateNumber', 'chassisNumber', 'engineNumber', 'color', 'odometer', 'branchId', 'branchName', 'status', 'assignedEmployeeId', 'assignedEmployeeName', 'handoverDate', 'bodyCondition', 'tireCondition', 'fuelLevel', 'previousDamages', 'insuranceExpiry', 'registrationExpiry', 'notes', 'createdAt', 'updatedAt'],
+  vouchers: ['id', 'voucherNumber', 'type', 'date', 'employeeId', 'employeeName', 'jobTitle', 'branchId', 'branchName', 'items', 'declaration', 'companyRepName', 'receivedByName', 'notes', 'createdAt'],
+  salary_records: ['id', 'month', 'employeeId', 'employeeName', 'jobTitle', 'branchName', 'baseSalary', 'allowances', 'deductions', 'netSalary', 'currency', 'status', 'paymentDate', 'paymentMethod', 'notes', 'createdAt'],
+  documents: ['id', 'title', 'category', 'relatedType', 'relatedId', 'relatedName', 'fileName', 'fileType', 'fileSize', 'dataUrl', 'createdAt', 'updatedAt'],
+  audit_logs: ['id', 'action', 'module', 'recordId', 'description', 'user', 'timestamp'],
+  contract_revisions: ['id', 'contractId', 'contractNumber', 'version', 'snapshot', 'reason', 'updatedBy', 'createdAt'],
+  custody_transactions: ['id', 'custodyId', 'custodyName', 'employeeId', 'employeeName', 'type', 'date', 'voucherId', 'voucherNumber', 'notes', 'timestamp']
+};
+
+function toCloudRow(tableName, row) {
+  const allowed = CLOUD_COLUMNS[tableName];
+  const out = {};
+  allowed.forEach((key) => {
+    if (row && Object.prototype.hasOwnProperty.call(row, key)) {
+      out[key] = row[key];
+    }
+  });
+
+  if (tableName === 'settings' && out.supabaseConfig && typeof out.supabaseConfig === 'object') {
+    // لا تُرسل مفاتيح/روابط الاتصال إطلاقاً؛ فقط بيانات المزامنة غير الحساسة
+    out.supabaseConfig = {
+      autoSync: !!out.supabaseConfig.autoSync,
+      lastSyncDate: out.supabaseConfig.lastSyncDate || null
+    };
+  }
+
+  return out;
+}
+
 export function translateSupabaseAuthError(err) {
   if (!err) return 'حدث خطأ غير معروف أثناء تسجيل الدخول.';
   const msg = typeof err === 'string' ? err : (err.message || '');
@@ -298,6 +372,19 @@ export async function supabaseSignIn(email, password) {
     throw new Error(translateSupabaseAuthError(error));
   }
 
+  // تقييد الدخول بالبريد المصادق الوحيد: abuhdyfh@gmail.com
+  if (!isAllowedEmail(cleanEmail)) {
+    try {
+      await client.auth.signOut();
+    } catch (e) {
+      console.warn('[Supabase] Failed to sign out disallowed account:', e);
+    }
+    sessionStorage.removeItem('ah_user_session');
+    localStorage.removeItem('ah_user_session');
+    localStorage.removeItem('ah_local_auth_session');
+    throw new Error('هذا البريد الإلكتروني غير مصرّح له بالدخول إلى نظام أبو حذيفة. تم إنهاء الجلسة فوراً.');
+  }
+
   persistSession(data.user);
 
   await logAudit('تسجيل دخول سحابي', 'الأمان والمستخدمين', data.user.id, `تسجيل دخول ناجح للمستخدم عبر Supabase (${cleanEmail})`, cleanEmail);
@@ -307,34 +394,11 @@ export async function supabaseSignIn(email, password) {
 /**
  * Supabase Secure Auth: Sign Up New Operator Account
  */
-export async function supabaseSignUp(email, password, metadata = {}) {
-  const client = await ensureSupabaseClient();
-  if (!client) {
-    throw new Error(cloudUnavailableMessage());
-  }
-
-  const cleanEmail = email.trim().toLowerCase();
-  const { data, error } = await client.auth.signUp({
-    email: cleanEmail,
-    password: password,
-    options: {
-      data: {
-        company: 'شركة أبو حذيفة للصرافة والتحويلات',
-        ...metadata
-      }
-    }
-  });
-
-  if (error) {
-    throw new Error(translateSupabaseAuthError(error));
-  }
-
-  if (data.session && data.user) {
-    persistSession(data.user);
-  }
-
-  await logAudit('إنشاء حساب سحابي', 'الأمان والمستخدمين', data.user?.id || 'NEW', `إنشاء حساب سحابي جديد (${cleanEmail})`);
-  return data;
+export async function supabaseSignUp(/* eslint-disable-line no-unused-vars */) {
+  // إنشاء الحسابات معطّل تماماً في هذه النسخة.
+  // الدخول حصرياً بالبريد المصادق: abuhdyfh@gmail.com
+  // يُنشأ الحساب من لوحة Supabase Authentication فقط ولا يُنشأ من الواجهة.
+  throw new Error('إنشاء الحسابات من الواجهة معطّل لأسباب أمنية. يرجى التواصل مع مسؤول النظام.');
 }
 
 /**
@@ -368,6 +432,14 @@ export async function getSupabaseCurrentUser() {
     try {
       const { data, error } = await client.auth.getSession();
       if (!error && data?.session?.user) {
+        // طرد أي حساب ليس ضمن البريد المصادق المسموح
+        if (!isAllowedEmail(data.session.user.email)) {
+          try { await client.auth.signOut(); } catch (e) { console.warn('[Supabase] Disallowed session cleanup failed:', e); }
+          sessionStorage.removeItem('ah_user_session');
+          localStorage.removeItem('ah_user_session');
+          localStorage.removeItem('ah_local_auth_session');
+          return null;
+        }
         persistSession(data.session.user);
         return data.session.user;
       }
@@ -406,31 +478,24 @@ export async function syncLocalToSupabase() {
     throw new Error(cloudUnavailableMessage());
   }
 
-  const syncTables = [
-    'settings',
-    'branches',
-    'contract_clauses',
-    'contract_templates',
-    'employees',
-    'contracts',
-    'custodies',
-    'vehicles',
-    'vouchers',
-    'salary_records'
-  ];
+  const syncTables = CLOUD_SYNC_TABLES;
   let totalSynced = 0;
+  const failedTables = [];
 
   for (const tableName of syncTables) {
     const localRows = await db.getAll(tableName);
     if (localRows.length > 0) {
       try {
-        const { error } = await client.from(tableName).upsert(localRows);
+        const cloudRows = localRows.map(row => toCloudRow(tableName, row));
+        const { error } = await client.from(tableName).upsert(cloudRows);
         if (!error) {
-          totalSynced += localRows.length;
+          totalSynced += cloudRows.length;
         } else {
+          failedTables.push(tableName);
           console.warn(`[Supabase Sync] Table ${tableName} returned warning:`, error.message);
         }
       } catch (e) {
+        failedTables.push(tableName);
         console.warn(`[Supabase Sync] Skipped table ${tableName}:`, e);
       }
     }
@@ -441,8 +506,12 @@ export async function syncLocalToSupabase() {
   config.lastSyncDate = new Date().toISOString();
   await saveSupabaseConfig(config);
 
-  await logAudit('مزامنة سحابية', 'النسخ الاحتياطي', 'ALL', `تمت المزامنة ورفع البيانات إلى Supabase بنجاح (${totalSynced} سجل)`);
-  return { success: true, count: totalSynced };
+  const summary = failedTables.length > 0
+    ? `تمت المزامنة ورفع ${totalSynced} سجل، مع فشل/تخطي في الجداول: ${failedTables.join(', ')}`
+    : `تمت المزامنة ورفع البيانات إلى Supabase بنجاح (${totalSynced} سجل)`;
+
+  await logAudit('مزامنة سحابية', 'النسخ الاحتياطي', 'ALL', summary);
+  return { success: true, count: totalSynced, failedTables };
 }
 
 /**
@@ -455,24 +524,17 @@ export async function syncSupabaseToLocal() {
   }
 
   // ملاحظة: جدول settings مستثنى من السحب لتفادي الكتابة فوق هوية الشركة المحلية
-  const syncTables = [
-    'branches',
-    'contract_clauses',
-    'contract_templates',
-    'employees',
-    'contracts',
-    'custodies',
-    'vehicles',
-    'vouchers',
-    'salary_records'
-  ];
+  const syncTables = CLOUD_SYNC_TABLES.filter(t => t !== 'settings');
   let totalImported = 0;
   const failedTables = [];
 
   for (const tableName of syncTables) {
     try {
       const { data, error } = await client.from(tableName).select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (error) {
+        failedTables.push(tableName);
+        console.warn(`[Supabase Pull] Table ${tableName} returned error:`, error.message);
+      } else if (Array.isArray(data) && data.length > 0) {
         await db.bulkAdd(tableName, data);
         totalImported += data.length;
       }

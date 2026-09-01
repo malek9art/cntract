@@ -4,10 +4,13 @@
 
 import { db } from '../core/db.js';
 import { formatDate } from '../utils/formatters.js';
-import { generateId, readFileAsDataURL } from '../utils/helpers.js';
+import { generateId, readFileAsDataURL, escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
+
+const MAX_DOC_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_DOC_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
 
 export async function initDocuments() {
   await renderDocumentsList();
@@ -53,15 +56,15 @@ export async function renderDocumentsList() {
               <i class="fa-solid ${iconClass}"></i>
             </div>
             <div class="flex-1">
-              <h4 class="font-bold text-slate-800 line-clamp-1">${d.title}</h4>
-              <span class="badge badge-subtle-blue text-xs mt-1">${d.category || 'مستند عام'}</span>
+              <h4 class="font-bold text-slate-800 line-clamp-1">${escapeHtml(d.title)}</h4>
+              <span class="badge badge-subtle-blue text-xs mt-1">${escapeHtml(d.category) || 'مستند عام'}</span>
             </div>
           </div>
 
           <div class="text-xs text-slate-600 space-y-1 mb-4 bg-slate-50 p-2.5 rounded">
-            <div><span class="text-muted">الجهة المرتبطة:</span> <strong>${d.relatedName || 'عام'}</strong></div>
+            <div><span class="text-muted">الجهة المرتبطة:</span> <strong>${escapeHtml(d.relatedName) || 'عام'}</strong></div>
             <div><span class="text-muted">تاريخ الرفع:</span> <span>${formatDate(d.createdAt)}</span></div>
-            <div><span class="text-muted">حجم الملف:</span> <span class="ltr-text font-mono">${d.fileSize || 'N/A'}</span></div>
+            <div><span class="text-muted">حجم الملف:</span> <span class="ltr-text font-mono">${escapeHtml(d.fileSize) || 'N/A'}</span></div>
           </div>
 
           <div class="flex justify-between items-center pt-2 border-t border-slate-100">
@@ -85,7 +88,7 @@ export async function openUploadDocumentModal() {
 
   const employees = await db.getAll('employees');
   empSelect.innerHTML = `<option value="">-- غير مرتبط بموظف محدد (مستند عام) --</option>` +
-    employees.map(e => `<option value="${e.id}">${e.fullName} (${e.code})</option>`).join('');
+    employees.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.fullName)} (${escapeHtml(e.code)})</option>`).join('');
 
   form.reset();
   openModal(modal);
@@ -105,6 +108,19 @@ export async function saveDocumentFromForm(e) {
   const title = form.elements['title'].value.trim() || file.name;
   const category = form.elements['category'].value;
   const empId = form.elements['employeeId'].value;
+
+  if (file.size > MAX_DOC_FILE_SIZE) {
+    showToast('حجم الملف يجب ألا يتجاوز 10 ميجابايت.', 'error');
+    return;
+  }
+
+  const normalizedFileType = (file.type || '').toLowerCase().split(/[;\s]/)[0];
+  const isAllowedType = ALLOWED_DOC_TYPES.includes(normalizedFileType) ||
+    normalizedFileType.startsWith('image/');
+  if (!isAllowedType) {
+    showToast('نوع الملف غير مدعوم. يُسمح فقط بالصور وملفات PDF والمستندات النصية وملفات Word وExcel.', 'error');
+    return;
+  }
 
   let relatedName = 'مستند عام للشركة';
   if (empId) {
@@ -171,9 +187,9 @@ function setupDocumentEvents() {
 
         titleEl.textContent = `معاينة مستند: ${doc.title}`;
         if (isImg) {
-          bodyEl.innerHTML = `<div class="p-6 text-center"><img src="${doc.dataUrl}" alt="${doc.title}" class="max-h-[70vh] mx-auto rounded shadow" /></div>`;
+          bodyEl.innerHTML = `<div class="p-6 text-center"><img src="${escapeHtml(doc.dataUrl)}" alt="${escapeHtml(doc.title)}" class="max-h-[70vh] mx-auto rounded shadow" /></div>`;
         } else {
-          bodyEl.innerHTML = `<iframe src="${doc.dataUrl}" class="w-full h-[70vh] border-0"></iframe>`;
+          bodyEl.innerHTML = `<iframe src="${escapeHtml(doc.dataUrl)}" class="w-full h-[70vh] border-0"></iframe>`;
         }
         openModal(modal);
       }

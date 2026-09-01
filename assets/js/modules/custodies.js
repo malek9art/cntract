@@ -6,7 +6,7 @@ import { db } from '../core/db.js';
 import { CUSTODY_TYPES, CUSTODY_STATUSES } from '../data/constants.js';
 import { formatCurrency, formatDate } from '../utils/formatters.js';
 import { validateCustodyHandover, validateCustodyReturn } from '../utils/validators.js';
-import { generateId, readFileAsDataURL } from '../utils/helpers.js';
+import { generateId, readFileAsDataURL, escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
@@ -29,12 +29,12 @@ export async function renderCustodyFilters() {
 
   if (branchSelect) {
     branchSelect.innerHTML = `<option value="">جميع الفروع</option>` +
-      branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      branches.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
   }
 
   if (typeSelect) {
     typeSelect.innerHTML = `<option value="">جميع الأنواع</option>` +
-      CUSTODY_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+      CUSTODY_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
   }
 }
 
@@ -93,28 +93,28 @@ export async function renderCustodiesList() {
     return `
       <tr>
         <td>
-          <div class="font-mono font-bold text-primary">${c.code}</div>
-          <span class="badge badge-subtle-cyan text-xs">${c.type}</span>
+          <div class="font-mono font-bold text-primary">${escapeHtml(c.code)}</div>
+          <span class="badge badge-subtle-cyan text-xs">${escapeHtml(c.type)}</span>
         </td>
         <td>
-          <div class="font-bold text-slate-800">${c.name}</div>
-          <div class="text-xs text-muted">${c.brand || ''} ${c.model || ''}</div>
+          <div class="font-bold text-slate-800">${escapeHtml(c.name)}</div>
+          <div class="text-xs text-muted">${escapeHtml(c.brand) || ''} ${escapeHtml(c.model) || ''}</div>
         </td>
         <td class="font-mono text-xs font-semibold text-slate-700">
-          ${c.serialNumber || '—'}
+          ${escapeHtml(c.serialNumber) || '—'}
         </td>
         <td>
-          <span class="badge badge-${stConfig.color}"><i class="fa-solid ${stConfig.icon} text-xs ml-1"></i> ${stConfig.label}</span>
+          <span class="badge badge-${stConfig.color}"><i class="fa-solid ${stConfig.icon} text-xs ml-1"></i> ${escapeHtml(stConfig.label)}</span>
         </td>
         <td>
           ${isDelivered ? `
-            <div class="font-semibold text-slate-900">${c.employeeName}</div>
-            <div class="text-xs text-muted">تاريخ التسليم: ${formatDate(c.handoverDate)}</div>
+            <div class="font-semibold text-slate-900">${escapeHtml(c.employeeName)}</div>
+            <div class="text-xs text-muted">تاريخ التسليم: ${escapeHtml(formatDate(c.handoverDate))}</div>
           ` : `<span class="text-muted text-xs">— (في المستودع)</span>`}
         </td>
         <td>
-          <div class="text-xs"><i class="fa-solid fa-building text-xs text-muted"></i> ${c.branchName || '—'}</div>
-          ${c.estimatedValue ? `<div class="text-xs font-bold text-slate-700 mt-1">${formatCurrency(c.estimatedValue, c.currency || 'YER')}</div>` : ''}
+          <div class="text-xs"><i class="fa-solid fa-building text-xs text-muted"></i> ${escapeHtml(c.branchName) || '—'}</div>
+          ${c.estimatedValue ? `<div class="text-xs font-bold text-slate-700 mt-1">${escapeHtml(formatCurrency(c.estimatedValue, c.currency || 'YER'))}</div>` : ''}
         </td>
         <td class="text-end table-actions">
           ${isAvailable ? `
@@ -151,8 +151,8 @@ export async function openCustodyModal(custodyId = null) {
   const branchSelect = document.getElementById('cust-form-branch');
 
   const branches = await db.getAll('branches');
-  branchSelect.innerHTML = branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-  typeSelect.innerHTML = CUSTODY_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+  branchSelect.innerHTML = branches.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
+  typeSelect.innerHTML = CUSTODY_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
 
   if (custodyId) {
     titleEl.innerHTML = `<i class="fa-solid fa-pen-to-square text-primary"></i> تعديل بيانات العهدة / الجهاز`;
@@ -259,11 +259,11 @@ export async function openHandoverModal(custodyId, prefilledEmpId = null) {
   const employees = await db.getAll('employees');
   const activeEmployees = employees.filter(e => e.status === 'active');
   empSelect.innerHTML = `<option value="">-- اختر الموظف المستلم --</option>` +
-    activeEmployees.map(e => `<option value="${e.id}" ${prefilledEmpId === e.id ? 'selected' : ''}>${e.fullName} (${e.code} - ${e.jobTitle})</option>`).join('');
+    activeEmployees.map(e => `<option value="${escapeHtml(e.id)}" ${prefilledEmpId === e.id ? 'selected' : ''}>${escapeHtml(e.fullName)} (${escapeHtml(e.code)} - ${escapeHtml(e.jobTitle)})</option>`).join('');
 
   const custodies = await db.getAll('custodies');
   const availableCustodies = custodies.filter(c => c.status === 'available' || c.id === custodyId);
-  custodySelect.innerHTML = availableCustodies.map(c => `<option value="${c.id}" ${c.id === custodyId ? 'selected' : ''}>${c.name} (${c.code} - S/N: ${c.serialNumber || 'N/A'})</option>`).join('');
+  custodySelect.innerHTML = availableCustodies.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === custodyId ? 'selected' : ''}>${escapeHtml(c.name)} (${escapeHtml(c.code)} - S/N: ${escapeHtml(c.serialNumber) || 'N/A'})</option>`).join('');
 
   form.reset();
   form.elements['date'].value = new Date().toISOString().split('T')[0];
@@ -288,7 +288,7 @@ export async function processCustodyHandover(e) {
 
   const validation = await validateCustodyHandover(custodyId, employeeId);
   if (!validation.isValid) {
-    showToast(validation.errors.join('<br>'), 'error');
+    showToast(validation.errors.join(' • '), 'error');
     return;
   }
 
@@ -378,7 +378,7 @@ export async function openReturnModal(custodyId) {
 
   const titleEl = document.getElementById('return-modal-custody-title');
   if (titleEl) {
-    titleEl.innerHTML = `إرجاع: <strong>${custody.name}</strong> (${custody.code}) • المسلّم لـ: <strong>${custody.employeeName || 'موظف'}</strong>`;
+    titleEl.innerHTML = `إرجاع: <strong>${escapeHtml(custody.name)}</strong> (${escapeHtml(custody.code)}) • المسلّم لـ: <strong>${escapeHtml(custody.employeeName) || 'موظف'}</strong>`;
   }
 
   form.reset();
@@ -487,7 +487,7 @@ export async function viewCustodyHistory(custodyId) {
   const titleEl = document.getElementById('custody-history-title');
   const bodyEl = document.getElementById('custody-history-body');
 
-  titleEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left text-primary"></i> سجل حركة العهدة: <strong>${custody.name}</strong> (${custody.code})`;
+  titleEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left text-primary"></i> سجل حركة العهدة: <strong>${escapeHtml(custody.name)}</strong> (${escapeHtml(custody.code)})`;
 
   if (transactions.length === 0) {
     bodyEl.innerHTML = `<div class="empty-state-card text-center py-6 text-muted">لا توجد حركات سابقة مسجلة لهذه العهدة.</div>`;
@@ -499,11 +499,11 @@ export async function viewCustodyHistory(custodyId) {
             <div class="activity-icon-bullet"><i class="fa-solid fa-circle-dot"></i></div>
             <div class="activity-content">
               <div class="activity-title font-bold text-slate-800">
-                <span class="activity-action-tag">${tx.type === 'handover' ? 'تسليم' : tx.type === 'return' ? 'إرجاع' : tx.type}</span>
-                ${tx.employeeName ? `إلى/من: ${tx.employeeName}` : ''}
+                <span class="activity-action-tag">${tx.type === 'handover' ? 'تسليم' : tx.type === 'return' ? 'إرجاع' : escapeHtml(tx.type)}</span>
+                ${tx.employeeName ? `إلى/من: ${escapeHtml(tx.employeeName)}` : ''}
               </div>
-              <p class="activity-desc">${tx.notes || 'تمت العملية وتوثيق المحضر'}</p>
-              <div class="activity-time">${formatDate(tx.date)} ${tx.voucherNumber ? `• رقم المحضر: ${tx.voucherNumber}` : ''}</div>
+              <p class="activity-desc">${escapeHtml(tx.notes) || 'تمت العملية وتوثيق المحضر'}</p>
+              <div class="activity-time">${escapeHtml(formatDate(tx.date))} ${tx.voucherNumber ? `• رقم المحضر: ${escapeHtml(tx.voucherNumber)}` : ''}</div>
             </div>
           </div>
         `).join('')}

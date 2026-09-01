@@ -2,6 +2,8 @@
  * Abu Hudhayfah Exchange & Transfers - Universal Modal Engine
  */
 
+import { escapeHtml } from '../utils/helpers.js';
+
 export function openModal(modalId) {
   const modal = typeof modalId === 'string' ? document.getElementById(modalId) : modalId;
   if (!modal) return;
@@ -60,7 +62,9 @@ export function showConfirmDialog({ title = 'تأكيد الإجراء', message
     }
 
     titleEl.textContent = title;
-    messageEl.innerHTML = message;
+    messageEl.innerHTML = escapeHtml(message)
+      .replace(/&lt;strong&gt;/g, '<strong>')
+      .replace(/&lt;\/strong&gt;/g, '</strong>');
     confirmBtn.textContent = confirmText;
     cancelBtn.textContent = cancelText;
 

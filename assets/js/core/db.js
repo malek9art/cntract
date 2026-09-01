@@ -296,25 +296,58 @@ class AppDatabase {
     return snapshot;
   }
 
-  // Restore DB from snapshot
+  // Restore DB from snapshot (single atomic transaction)
   async importSnapshot(snapshot) {
     if (!snapshot || !snapshot.data) {
       throw new Error('ملف النسخة الاحتياطية غير صالح أو تالف');
     }
 
-    for (const table of TABLE_NAMES) {
-      if (Array.isArray(snapshot.data[table])) {
-        await this.clear(table);
-        await this.bulkAdd(table, snapshot.data[table]);
-      }
-    }
+    return new Promise((resolve, reject) => {
+      const storesInSnapshot = TABLE_NAMES.filter(table => Array.isArray(snapshot.data[table]));
+      const allStores = [...new Set([...storesInSnapshot, 'settings'])];
+      allStores.forEach(table => {
+        if (!this.db.objectStoreNames.contains(table)) {
+          throw new Error(`جدول غير معروف في النسخة الاحتياطية: ${table}`);
+        }
+      });
 
-    // Update last backup date in settings
-    const settings = await this.get('settings', 'company_settings') || INITIAL_COMPANY_SETTINGS;
-    settings.lastBackupDate = new Date().toISOString();
-    await this.put('settings', settings);
+      const tx = this.db.transaction(allStores, 'readwrite');
+      const txError = [];
 
-    return true;
+      allStores.forEach(table => {
+        const store = tx.objectStore(table);
+
+        const clearRequest = store.clear();
+        clearRequest.onerror = (event) => txError.push(event.target.error);
+
+        const items = Array.isArray(snapshot.data[table]) ? snapshot.data[table] : [];
+        items.forEach(item => {
+          const putRequest = store.put(item);
+          putRequest.onerror = (event) => {
+            if (item && item.id) {
+              console.warn(`Failed to import ${table} record ${item.id}:`, event.target.error);
+            }
+            txError.push(event.target.error);
+          };
+        });
+      });
+
+      tx.oncomplete = () => {
+        resolve(true);
+      };
+      tx.onerror = () => {
+        reject(tx.error || new Error('فشل استعادة النسخة الاحتياطية بسبب خطأ في قاعدة البيانات'));
+      };
+      tx.onabort = () => {
+        reject(new Error('تم إلغاء استعادة النسخة الاحتياطية تلقائياً. البيانات الأصلية لم تتأثر.'));
+      };
+    }).then(async () => {
+      // Update last backup date in settings only after the atomic swap succeeded
+      const settings = await this.get('settings', 'company_settings') || INITIAL_COMPANY_SETTINGS;
+      settings.lastBackupDate = new Date().toISOString();
+      await this.put('settings', settings);
+      return true;
+    });
   }
 
   // Wipe All Records (Clean State)

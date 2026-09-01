@@ -253,3 +253,72 @@ CREATE POLICY "Allow anon all on settings" ON public.settings FOR ALL USING (tru
 CREATE POLICY "Allow anon all on contract_templates" ON public.contract_templates FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all on contract_clauses" ON public.contract_clauses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all on salary_records" ON public.salary_records FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================================
+-- 11. جداول المزامنة السحابية الإضافية (أضيفت في المرحلة الأولى)
+--     كانت هذه الجداول محلية فقط، والآن تحتاج وجوداً في Supabase لرفعها.
+-- =========================================================================
+
+-- 11a. جدول المستندات والمرفقات
+CREATE TABLE IF NOT EXISTS public.documents (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT,
+    "relatedType" TEXT,
+    "relatedId" TEXT,
+    "relatedName" TEXT,
+    "fileName" TEXT,
+    "fileType" TEXT,
+    "fileSize" TEXT,
+    "dataUrl" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 11b. جدول سجل التدقيق
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id TEXT PRIMARY KEY,
+    action TEXT,
+    module TEXT,
+    "recordId" TEXT,
+    description TEXT,
+    "user" TEXT,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 11c. جدول إصدارات العقود
+CREATE TABLE IF NOT EXISTS public.contract_revisions (
+    id TEXT PRIMARY KEY,
+    "contractId" TEXT,
+    "contractNumber" TEXT,
+    version TEXT,
+    snapshot JSONB DEFAULT '{}'::jsonb,
+    reason TEXT,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 11d. جدول حركة العهد
+CREATE TABLE IF NOT EXISTS public.custody_transactions (
+    id TEXT PRIMARY KEY,
+    "custodyId" TEXT,
+    "custodyName" TEXT,
+    "employeeId" TEXT,
+    "employeeName" TEXT,
+    type TEXT,
+    date DATE,
+    "voucherId" TEXT,
+    "voucherNumber" TEXT,
+    notes TEXT,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contract_revisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.custody_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated all on documents" ON public.documents FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated all on audit_logs" ON public.audit_logs FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated all on contract_revisions" ON public.contract_revisions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated all on custody_transactions" ON public.custody_transactions FOR ALL TO authenticated USING (true) WITH CHECK (true);

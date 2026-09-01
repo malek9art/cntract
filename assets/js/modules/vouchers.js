@@ -4,6 +4,7 @@
 
 import { db } from '../core/db.js';
 import { formatDate } from '../utils/formatters.js';
+import { escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { showConfirmDialog } from '../ui/modal.js';
@@ -47,7 +48,7 @@ export async function renderVouchersList() {
 
     return `
       <tr>
-        <td class="font-mono font-bold text-primary">${v.voucherNumber}</td>
+        <td class="font-mono font-bold text-primary">${escapeHtml(v.voucherNumber)}</td>
         <td>
           <span class="badge ${isHandover ? 'badge-blue' : 'badge-emerald'}">
             <i class="fa-solid ${isHandover ? 'fa-hand-holding-hand' : 'fa-rotate-left'} text-xs ml-1"></i>
@@ -55,19 +56,19 @@ export async function renderVouchersList() {
           </span>
         </td>
         <td>
-          <div class="font-bold text-slate-800">${v.employeeName}</div>
-          <div class="text-xs text-muted">${v.jobTitle || 'موظف'}</div>
+          <div class="font-bold text-slate-800">${escapeHtml(v.employeeName)}</div>
+          <div class="text-xs text-muted">${escapeHtml(v.jobTitle) || 'موظف'}</div>
         </td>
-        <td>${formatDate(v.date)}</td>
+        <td>${escapeHtml(formatDate(v.date))}</td>
         <td>
-          <div class="text-sm font-medium text-slate-700 line-clamp-1">${itemsSummary}</div>
-          <div class="text-xs text-muted">${v.branchName || 'المركز الرئيسي'}</div>
+          <div class="text-sm font-medium text-slate-700 line-clamp-1">${escapeHtml(itemsSummary)}</div>
+          <div class="text-xs text-muted">${escapeHtml(v.branchName) || 'المركز الرئيسي'}</div>
         </td>
         <td class="text-end table-actions">
-          <button class="btn btn-sm btn-primary" data-action="view-voucher-pdf" data-id="${v.id}" title="معاينة وطباعة المحضر">
+          <button class="btn btn-sm btn-primary" data-action="view-voucher-pdf" data-id="${escapeHtml(v.id)}" title="معاينة وطباعة المحضر">
             <i class="fa-solid fa-print ml-1"></i> طباعة
           </button>
-          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-voucher" data-id="${v.id}" title="حذف المحضر">
+          <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-voucher" data-id="${escapeHtml(v.id)}" title="حذف المحضر">
             <i class="fa-solid fa-trash"></i>
           </button>
         </td>

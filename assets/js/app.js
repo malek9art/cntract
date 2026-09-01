@@ -6,6 +6,7 @@
 import { db } from './core/db.js';
 import { setupModalListeners, openModal, closeModal } from './ui/modal.js';
 import { showToast } from './ui/toast.js';
+import { escapeHtml } from './utils/helpers.js';
 
 // Module initializers
 import { initDashboard, renderDashboardMetrics } from './modules/dashboard.js';
@@ -33,7 +34,8 @@ import {
   getSupabase,
   getCloudStatus,
   hasCloudKeys,
-  cloudUnavailableMessage
+  cloudUnavailableMessage,
+  isAllowedEmail
 } from './services/supabase-service.js';
 
 class App {
@@ -168,6 +170,15 @@ class App {
         this.setupLoginGateEvents();
         this.refreshGateCloudStatus();
       } else if (session?.user) {
+        if (!isAllowedEmail(session.user.email)) {
+          this.isAuthenticated = false;
+          sessionStorage.removeItem('ah_user_session');
+          localStorage.removeItem('ah_user_session');
+          this.showGate();
+          this.setupLoginGateEvents();
+          supabaseSignOut().then(() => this.refreshGateCloudStatus());
+          return;
+        }
         this.isAuthenticated = true;
         this.updateUserBadge(session.user.email);
       }
@@ -241,11 +252,20 @@ class App {
     const passInput = document.getElementById('gate-password-input');
     const capsHint = document.getElementById('gate-capslock-hint');
 
+    // إغلاق إنشاء الحساب: الدخول بالبريد المصادق الوحيد فقط
+    if (tabSignUp) tabSignUp.style.display = 'none';
+    if (nameGroup) nameGroup.style.display = 'none';
+    if (tabSignIn) tabSignIn.classList.add('active');
+
+    const safeMessage = (msg) => escapeHtml(String(msg || ''))
+      .replace(/&lt;strong&gt;/gi, '<strong>')
+      .replace(/&lt;\/strong&gt;/gi, '</strong>');
+
     const showGateMessage = (msg, isError = true) => {
       if (!msgBox || !msgText) return;
       msgBox.className = isError ? 'auth-feedback-box error' : 'auth-feedback-box success';
       msgBox.style.display = 'flex';
-      msgText.innerHTML = msg;
+      msgText.innerHTML = safeMessage(msg);
     };
 
     const clearGateMessage = () => {
@@ -343,23 +363,12 @@ class App {
       });
     }
 
-    // Tabs
-    if (tabSignIn && tabSignUp) {
+    // Tabs: تسجيل الدخول فقط (إنشاء الحساب معطّل)
+    if (tabSignIn) {
       tabSignIn.addEventListener('click', () => {
         this.gateMode = 'signin';
         tabSignIn.classList.add('active');
-        tabSignUp.classList.remove('active');
-        if (nameGroup) nameGroup.style.display = 'none';
         if (submitBtnText) submitBtnText.textContent = 'تسجيل الدخول السحابي الآمن';
-        clearGateMessage();
-      });
-
-      tabSignUp.addEventListener('click', () => {
-        this.gateMode = 'signup';
-        tabSignUp.classList.add('active');
-        tabSignIn.classList.remove('active');
-        if (nameGroup) nameGroup.style.display = 'block';
-        if (submitBtnText) submitBtnText.textContent = 'تفعيل وإنشاء الحساب السحابي';
         clearGateMessage();
       });
     }
@@ -441,10 +450,16 @@ class App {
           return;
         }
 
+        // البريد المصادق الوحيد المسموح بالدخول
+        if (!isAllowedEmail(username)) {
+          showGateMessage('هذا البريد الإلكتروني غير مصرّح له بالدخول. الدخول حصرياً عبر حساب الإدارة المعتمد (abuhdyfh@gmail.com).');
+          return;
+        }
+
         const restoreBtn = () => {
           if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-shield-halved ml-1"></i> <span id="gate-submit-btn-text">${this.gateMode === 'signup' ? 'تفعيل وإنشاء الحساب السحابي' : 'تسجيل الدخول السحابي الآمن'}</span>`;
+            btn.innerHTML = `<i class="fa-solid fa-shield-halved ml-1"></i> <span id="gate-submit-btn-text">تسجيل الدخول السحابي الآمن</span>`;
           }
         };
 
@@ -454,20 +469,6 @@ class App {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري التحقق السحابي...';
           }
 
-          // 1. SIGN UP MODE
-          if (this.gateMode === 'signup') {
-            const signUpRes = await supabaseSignUp(username, password, { fullName: fullName || 'أبو حذيفة (المدير العام)' });
-
-            if (signUpRes.session) {
-              this.onAuthSuccess(username);
-            } else {
-              showGateMessage(`تم إنشاء الحساب بنجاح لـ <strong>${username}</strong>! إذا كان تأكيد البريد مفعلاً، يرجى مراجعة صندوق بريدك لتأكيد الرابط ثم تسجيل الدخول.`, false);
-              if (tabSignIn) tabSignIn.click();
-            }
-            return;
-          }
-
-          // 2. SIGN IN MODE
           await supabaseSignIn(username, password);
           this.onAuthSuccess(username);
         } catch (err) {
@@ -732,7 +733,7 @@ class App {
       const totalMatches = matchedEmployees.length + matchedContracts.length + matchedCustodies.length + matchedVehicles.length;
 
       if (totalMatches === 0) {
-        resultsContainer.innerHTML = `<div class="p-4 text-center text-muted text-xs">لا توجد نتائج بحث مطابقة لـ "${query}"</div>`;
+        resultsContainer.innerHTML = `<div class="p-4 text-center text-muted text-xs">لا توجد نتائج بحث مطابقة لـ &quot;${escapeHtml(query)}&quot;</div>`;
         resultsContainer.style.display = 'block';
         return;
       }
@@ -743,9 +744,9 @@ class App {
         html += `<div class="search-category-header"><i class="fa-solid fa-users"></i> الموظفون</div>`;
         matchedEmployees.forEach(emp => {
           html += `
-            <a href="#employee-detail?id=${emp.id}" class="search-result-item" data-action="close-global-search">
-              <div class="font-bold text-slate-800">${emp.fullName}</div>
-              <div class="text-xs text-muted font-mono">${emp.code} • ${emp.jobTitle}</div>
+            <a href="#employee-detail?id=${encodeURIComponent(emp.id)}" class="search-result-item" data-action="close-global-search">
+              <div class="font-bold text-slate-800">${escapeHtml(emp.fullName)}</div>
+              <div class="text-xs text-muted font-mono">${escapeHtml(emp.code)} • ${escapeHtml(emp.jobTitle)}</div>
             </a>
           `;
         });
@@ -756,8 +757,8 @@ class App {
         matchedContracts.forEach(c => {
           html += `
             <a href="#contracts" class="search-result-item" data-action="close-global-search">
-              <div class="font-bold text-primary font-mono">${c.contractNumber}</div>
-              <div class="text-xs text-muted">${c.employeeName} (${c.templateName || c.contractType})</div>
+              <div class="font-bold text-primary font-mono">${escapeHtml(c.contractNumber)}</div>
+              <div class="text-xs text-muted">${escapeHtml(c.employeeName)} (${escapeHtml(c.templateName || c.contractType)})</div>
             </a>
           `;
         });
@@ -768,8 +769,8 @@ class App {
         matchedCustodies.forEach(c => {
           html += `
             <a href="#custodies" class="search-result-item" data-action="close-global-search">
-              <div class="font-bold text-slate-800">${c.name}</div>
-              <div class="text-xs text-muted font-mono">${c.code} • ${c.status === 'delivered' ? 'مسلمة لـ ' + c.employeeName : 'متاحة'}</div>
+              <div class="font-bold text-slate-800">${escapeHtml(c.name)}</div>
+              <div class="text-xs text-muted font-mono">${escapeHtml(c.code)} • ${c.status === 'delivered' ? 'مسلمة لـ ' + escapeHtml(c.employeeName) : 'متاحة'}</div>
             </a>
           `;
         });
@@ -780,8 +781,8 @@ class App {
         matchedVehicles.forEach(v => {
           html += `
             <a href="#vehicles" class="search-result-item" data-action="close-global-search">
-              <div class="font-bold text-slate-800">${v.brand} ${v.model}</div>
-              <div class="text-xs text-muted">لوحة: <span class="font-mono">${v.plateNumber}</span></div>
+              <div class="font-bold text-slate-800">${escapeHtml(v.brand)} ${escapeHtml(v.model)}</div>
+              <div class="text-xs text-muted">لوحة: <span class="font-mono">${escapeHtml(v.plateNumber)}</span></div>
             </a>
           `;
         });
@@ -828,14 +829,14 @@ class App {
       } else {
         dropdown.innerHTML = `
           <div class="p-3 border-b border-slate-100 font-bold text-sm text-slate-800 flex justify-between items-center">
-            <span>تنبيهات العقود القريبة (${expiring.length})</span>
+            <span>تنبيهات العقود القريبة (${escapeHtml(expiring.length)})</span>
             <a href="#reports" class="text-xs text-cyan hover:underline">عرض الكل</a>
           </div>
           <div class="max-h-60 overflow-y-auto">
             ${expiring.map(c => `
               <div class="p-3 border-b border-slate-50 hover:bg-slate-50 text-xs">
-                <div class="font-bold text-slate-800">${c.employeeName}</div>
-                <div class="text-muted">العقد <span class="font-mono font-bold">${c.contractNumber}</span> ينتهي في ${c.endDate}</div>
+                <div class="font-bold text-slate-800">${escapeHtml(c.employeeName)}</div>
+                <div class="text-muted">العقد <span class="font-mono font-bold">${escapeHtml(c.contractNumber)}</span> ينتهي في ${escapeHtml(c.endDate)}</div>
               </div>
             `).join('')}
           </div>

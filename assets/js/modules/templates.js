@@ -4,7 +4,7 @@
 
 import { db } from '../core/db.js';
 import { CONTRACT_TYPES } from '../data/constants.js';
-import { generateId } from '../utils/helpers.js';
+import { generateId, escapeHtml } from '../utils/helpers.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
 import { openModal, closeModal, showConfirmDialog } from '../ui/modal.js';
@@ -40,34 +40,34 @@ export async function renderTemplatesList() {
       <div class="template-card card">
         <div class="card-header flex justify-between items-start">
           <div>
-            <span class="badge badge-subtle-blue mb-1">${tpl.type || 'عقد مخصص'}</span>
-            <h3 class="template-title text-lg font-bold text-slate-800">${tpl.name}</h3>
+            <span class="badge badge-subtle-blue mb-1">${escapeHtml(tpl.type) || 'عقد مخصص'}</span>
+            <h3 class="template-title text-lg font-bold text-slate-800">${escapeHtml(tpl.name)}</h3>
           </div>
           ${tpl.isDefault ? '<span class="badge badge-emerald">افتراضي</span>' : ''}
         </div>
         <div class="card-body">
-          <p class="template-desc text-sm text-slate-600 mb-4">${tpl.description || 'لا يوجد وصف'}</p>
+          <p class="template-desc text-sm text-slate-600 mb-4">${escapeHtml(tpl.description) || 'لا يوجد وصف'}</p>
 
           <div class="template-meta-grid text-xs text-slate-500 mb-4">
-            <div><i class="fa-solid fa-list-check text-cyan"></i> <strong>${includedClausesCount}</strong> بنود تعاقدية</div>
-            <div><i class="fa-solid fa-file-contract text-primary"></i> تم استخدامه في <strong>${usageCount}</strong> عقود</div>
-            <div><i class="fa-solid fa-clock"></i> تجربة: <strong>${tpl.defaultProbation || '3 أشهر'}</strong></div>
-            <div><i class="fa-solid fa-bell"></i> إشعار: <strong>${tpl.defaultNotice || '30 يوماً'}</strong></div>
+            <div><i class="fa-solid fa-list-check text-cyan"></i> <strong>${escapeHtml(includedClausesCount)}</strong> بنود تعاقدية</div>
+            <div><i class="fa-solid fa-file-contract text-primary"></i> تم استخدامه في <strong>${escapeHtml(usageCount)}</strong> عقود</div>
+            <div><i class="fa-solid fa-clock"></i> تجربة: <strong>${escapeHtml(tpl.defaultProbation) || '3 أشهر'}</strong></div>
+            <div><i class="fa-solid fa-bell"></i> إشعار: <strong>${escapeHtml(tpl.defaultNotice) || '30 يوماً'}</strong></div>
           </div>
 
           <div class="template-card-footer flex justify-between items-center pt-3 border-t border-slate-100">
-            <button class="btn btn-sm btn-primary" data-action="use-template" data-id="${tpl.id}">
+            <button class="btn btn-sm btn-primary" data-action="use-template" data-id="${escapeHtml(tpl.id)}">
               <i class="fa-solid fa-file-circle-plus ml-1"></i> إنشاء عقد بهذا القالب
             </button>
             <div class="flex gap-1">
-              <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-template" data-id="${tpl.id}" title="تعديل القالب والبنود">
+              <button class="btn btn-sm btn-icon btn-ghost" data-action="edit-template" data-id="${escapeHtml(tpl.id)}" title="تعديل القالب والبنود">
                 <i class="fa-solid fa-pen-to-square"></i>
               </button>
-              <button class="btn btn-sm btn-icon btn-ghost" data-action="clone-template" data-id="${tpl.id}" title="نسخ القالب">
+              <button class="btn btn-sm btn-icon btn-ghost" data-action="clone-template" data-id="${escapeHtml(tpl.id)}" title="نسخ القالب">
                 <i class="fa-solid fa-clone"></i>
               </button>
               ${!tpl.isDefault ? `
-                <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-template" data-id="${tpl.id}" title="حذف القالب">
+                <button class="btn btn-sm btn-icon btn-ghost text-rose" data-action="delete-template" data-id="${escapeHtml(tpl.id)}" title="حذف القالب">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               ` : ''}
@@ -88,7 +88,7 @@ export async function openTemplateModal(templateId = null) {
   const clausesCheckboxContainer = document.getElementById('tpl-form-clauses-selection');
 
   // Populate Types
-  typeSelect.innerHTML = CONTRACT_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+  typeSelect.innerHTML = CONTRACT_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
 
   // Populate Clauses checkboxes
   const clauses = await db.getAll('contract_clauses');
@@ -124,10 +124,10 @@ export async function openTemplateModal(templateId = null) {
   // Render checklist
   clausesCheckboxContainer.innerHTML = sortedClauses.map((c, i) => `
     <label class="clause-check-item flex items-start gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer text-sm">
-      <input type="checkbox" name="clause_id" value="${c.id}" ${selectedClauseIds.includes(c.id) ? 'checked' : ''} class="mt-1" />
+      <input type="checkbox" name="clause_id" value="${escapeHtml(c.id)}" ${selectedClauseIds.includes(c.id) ? 'checked' : ''} class="mt-1" />
       <div>
-        <strong class="text-slate-800">${c.numberText || `البند ${i + 1}`}: ${c.title}</strong>
-        <p class="text-xs text-slate-500 line-clamp-1">${c.content.substring(0, 70)}...</p>
+        <strong class="text-slate-800">${escapeHtml(c.numberText) || `البند ${i + 1}`}: ${escapeHtml(c.title)}</strong>
+        <p class="text-xs text-slate-500 line-clamp-1">${escapeHtml(c.content.substring(0, 70))}...</p>
       </div>
     </label>
   `).join('');

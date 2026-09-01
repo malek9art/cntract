@@ -4,6 +4,7 @@
  */
 
 import { formatDate, formatCurrency, tafqeetArabic } from '../utils/formatters.js';
+import { escapeHtml } from '../utils/helpers.js';
 import { substituteContractVariables } from './template-service.js';
 import { logAudit } from '../core/audit.js';
 import { showToast } from '../ui/toast.js';
@@ -18,30 +19,30 @@ export function renderDocumentHeader(settings, title, docNumber = '', docDate = 
   return `
     <div class="print-doc-header">
       <div class="doc-header-right">
-        <h2 class="doc-company-ar">${companyName}</h2>
+        <h2 class="doc-company-ar">${escapeHtml(companyName)}</h2>
         <div class="doc-company-sub">ش.م.ي مقفلة • ترخيص مصرفي</div>
         <div class="doc-company-meta">
-          <span>س.ت: <strong>${cr}</strong></span>
+          <span>س.ت: <strong>${escapeHtml(cr)}</strong></span>
           <span>•</span>
-          <span>${license}</span>
+          <span>${escapeHtml(license)}</span>
         </div>
       </div>
 
       <div class="doc-header-center">
-        <img src="${logo}" alt="شعار شركة أبو حذيفة" class="doc-header-logo" onerror="this.src='assets/images/logo.svg'" />
+        <img src="${escapeHtml(logo)}" alt="شعار شركة أبو حذيفة" class="doc-header-logo" onerror="this.src='assets/images/logo.svg'" />
       </div>
 
       <div class="doc-header-left">
-        <h3 class="doc-company-en">${companyNameEn}</h3>
+        <h3 class="doc-company-en">${escapeHtml(companyNameEn)}</h3>
         <div class="doc-badge-meta">
-          ${docNumber ? `<div><strong>رقم المستند:</strong> <span class="ltr-text font-mono">${docNumber}</span></div>` : ''}
+          ${docNumber ? `<div><strong>رقم المستند:</strong> <span class="ltr-text font-mono">${escapeHtml(docNumber)}</span></div>` : ''}
           ${docDate ? `<div><strong>التاريخ:</strong> <span>${formatDate(docDate)}</span></div>` : ''}
         </div>
       </div>
     </div>
     <div class="doc-header-divider"></div>
     <div class="doc-title-bar">
-      <h1>${title}</h1>
+      <h1>${escapeHtml(title)}</h1>
     </div>
   `;
 }
@@ -57,15 +58,15 @@ export function renderDocumentFooter(settings, docNumber = '') {
       <div class="doc-footer-divider"></div>
       <div class="doc-footer-content">
         <div class="footer-col-right">
-          <span>المقر الرئيسي: ${hq}</span>
+          <span>المقر الرئيسي: ${escapeHtml(hq)}</span>
           <span>•</span>
-          <span>هاتف: ${phone}</span>
+          <span>هاتف: ${escapeHtml(phone)}</span>
         </div>
         <div class="footer-col-center">
-          <span class="doc-watermark-tag">مستند رسمي معتمد • ${companyName}</span>
+          <span class="doc-watermark-tag">مستند رسمي معتمد • ${escapeHtml(companyName)}</span>
         </div>
         <div class="footer-col-left">
-          <span>${email}</span>
+          <span>${escapeHtml(email)}</span>
         </div>
       </div>
     </div>
@@ -82,17 +83,17 @@ export function renderSignatureBlock(employeeName, companyRep = null, includeSta
     <div class="doc-signatures-section">
       <div class="sig-col sig-first-party">
         <div class="sig-title">الطرف الأول (صاحب العمل)</div>
-        <div class="sig-role">عن: <strong>${companyName}</strong></div>
-        <div class="sig-rep-name">الاسم: <strong>${repName}</strong> (${repRole})</div>
+        <div class="sig-role">عن: <strong>${escapeHtml(companyName)}</strong></div>
+        <div class="sig-rep-name">الاسم: <strong>${escapeHtml(repName)}</strong> (${escapeHtml(repRole)})</div>
         <div class="sig-line">التوقيع: .......................................</div>
         <div class="sig-date">التاريخ: ..... / ..... / 2026 م</div>
-        ${includeStamp ? `<div class="sig-stamp-container"><img src="${stampUrl}" alt="ختم الشركة" class="official-stamp-img" onerror="this.src='assets/images/stamp.svg'" /></div>` : ''}
+        ${includeStamp ? `<div class="sig-stamp-container"><img src="${escapeHtml(stampUrl)}" alt="ختم الشركة" class="official-stamp-img" onerror="this.src='assets/images/stamp.svg'" /></div>` : ''}
       </div>
 
       <div class="sig-col sig-second-party">
         <div class="sig-title">الطرف الثاني (الموظف)</div>
         <div class="sig-role">المقر بما فيه ومستلم نسخة العقد الأصلية</div>
-        <div class="sig-rep-name">الاسم: <strong>${employeeName || '...........................................'}</strong></div>
+        <div class="sig-rep-name">الاسم: <strong>${escapeHtml(employeeName) || '...........................................'}</strong></div>
         <div class="sig-line">التوقيع: .......................................</div>
         <div class="sig-line">البصمة: .......................................</div>
         <div class="sig-date">التاريخ: ..... / ..... / 2026 م</div>
@@ -124,8 +125,8 @@ export function buildContractDocumentHtml(contract, employee, settings) {
       const substituted = substituteContractVariables(clause.content, contract, employee, settings);
       return `
         <div class="contract-clause-item">
-          <h4 class="clause-title">${clause.numberText ? clause.numberText + ': ' : ''}${clause.title}</h4>
-          <p class="clause-text">${substituted}</p>
+          <h4 class="clause-title">${clause.numberText ? escapeHtml(clause.numberText) + ': ' : ''}${escapeHtml(clause.title)}</h4>
+          <p class="clause-text">${escapeHtml(substituted)}</p>
         </div>
       `;
     })
@@ -143,20 +144,20 @@ export function buildContractDocumentHtml(contract, employee, settings) {
         <div class="parties-grid">
           <div class="party-box party-first">
             <div class="party-badge">الطرف الأول (صاحب العمل)</div>
-            <div class="party-row"><strong>الاسم:</strong> <span class="text-primary font-bold">${firstPartyName}</span></div>
-            <div class="party-row"><strong>السجل التجاري:</strong> ${settings?.commercialRegister || '108492048'}</div>
-            <div class="party-row"><strong>الترخيص المصرفي:</strong> ${settings?.centralBankLicense || 'ترخيص البنك المركزي 442/ص'}</div>
-            <div class="party-row"><strong>العنوان:</strong> ${settings?.headquarters || 'اليمن - صنعاء - شارع الزبيري'}</div>
-            <div class="party-row"><strong>الممثل المفوض:</strong> <strong>${firstPartyRep}</strong> (${firstPartyRole})</div>
+            <div class="party-row"><strong>الاسم:</strong> <span class="text-primary font-bold">${escapeHtml(firstPartyName)}</span></div>
+            <div class="party-row"><strong>السجل التجاري:</strong> ${escapeHtml(settings?.commercialRegister) || '108492048'}</div>
+            <div class="party-row"><strong>الترخيص المصرفي:</strong> ${escapeHtml(settings?.centralBankLicense) || 'ترخيص البنك المركزي 442/ص'}</div>
+            <div class="party-row"><strong>العنوان:</strong> ${escapeHtml(settings?.headquarters) || 'اليمن - صنعاء - شارع الزبيري'}</div>
+            <div class="party-row"><strong>الممثل المفوض:</strong> <strong>${escapeHtml(firstPartyRep)}</strong> (${escapeHtml(firstPartyRole)})</div>
           </div>
 
           <div class="party-box party-second">
             <div class="party-badge">الطرف الثاني (الموظف)</div>
-            <div class="party-row"><strong>الاسم الرباعي:</strong> ${employee?.fullName || contract.employeeName}</div>
-            <div class="party-row"><strong>رقم الهوية:</strong> <span class="font-mono font-bold">${employee?.nationalId || '—'}</span></div>
-            <div class="party-row"><strong>الجنسية:</strong> ${employee?.nationality || 'يمني'}</div>
-            <div class="party-row"><strong>رقم الهاتف:</strong> <span class="font-mono">${employee?.phone || '—'}</span></div>
-            <div class="party-row"><strong>العنوان:</strong> ${employee?.address || '—'}</div>
+            <div class="party-row"><strong>الاسم الرباعي:</strong> ${escapeHtml(employee?.fullName || contract.employeeName)}</div>
+            <div class="party-row"><strong>رقم الهوية:</strong> <span class="font-mono font-bold">${escapeHtml(employee?.nationalId) || '—'}</span></div>
+            <div class="party-row"><strong>الجنسية:</strong> ${escapeHtml(employee?.nationality) || 'يمني'}</div>
+            <div class="party-row"><strong>رقم الهاتف:</strong> <span class="font-mono">${escapeHtml(employee?.phone) || '—'}</span></div>
+            <div class="party-row"><strong>العنوان:</strong> ${escapeHtml(employee?.address) || '—'}</div>
           </div>
         </div>
       </div>
@@ -177,8 +178,8 @@ export function buildContractDocumentHtml(contract, employee, settings) {
           </thead>
           <tbody>
             <tr>
-              <td><strong>${contract.jobTitle || employee?.jobTitle || '—'}</strong></td>
-              <td>${contract.branchName || employee?.branchName || '—'}</td>
+              <td><strong>${escapeHtml(contract.jobTitle || employee?.jobTitle) || '—'}</strong></td>
+              <td>${escapeHtml(contract.branchName || employee?.branchName) || '—'}</td>
               <td>${formatDate(contract.startDate)}</td>
               <td>${contract.endDate ? formatDate(contract.endDate) : 'غير محدد'}</td>
               <td>${baseSalaryFormatted}</td>
@@ -188,7 +189,7 @@ export function buildContractDocumentHtml(contract, employee, settings) {
           </tbody>
         </table>
         <div class="tafqeet-note">
-          <strong>الراتب الصافي كتابةً:</strong> <span>${salaryTafqeet}</span>
+          <strong>الراتب الصافي كتابةً:</strong> <span>${escapeHtml(salaryTafqeet)}</span>
         </div>
       </div>
 
@@ -214,11 +215,11 @@ export function buildCustodyHandoverVoucherHtml(voucher, employee, settings) {
   const itemsRows = (voucher.items || []).map((item, index) => `
     <tr>
       <td class="text-center">${index + 1}</td>
-      <td><strong>${item.name}</strong></td>
-      <td>${item.brand || '—'} ${item.model || ''}</td>
-      <td class="ltr-text font-mono">${item.serialNumber || item.code || '—'}</td>
-      <td><span class="badge badge-emerald">${item.condition || 'ممتاز وسليم'}</span></td>
-      <td>${item.notes || 'لا توجد'}</td>
+      <td><strong>${escapeHtml(item.name)}</strong></td>
+      <td>${escapeHtml(item.brand) || '—'} ${escapeHtml(item.model) || ''}</td>
+      <td class="ltr-text font-mono">${escapeHtml(item.serialNumber || item.code) || '—'}</td>
+      <td><span class="badge badge-emerald">${escapeHtml(item.condition) || 'ممتاز وسليم'}</span></td>
+      <td>${escapeHtml(item.notes) || 'لا توجد'}</td>
     </tr>
   `).join('');
 
@@ -229,15 +230,15 @@ export function buildCustodyHandoverVoucherHtml(voucher, employee, settings) {
       <div class="voucher-info-box">
         <table class="voucher-meta-table">
           <tr>
-            <td><strong>اسم الموظف المستلم:</strong> ${employee?.fullName || voucher.employeeName}</td>
-            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono font-bold">${employee?.code || voucher.employeeId || '—'}</span></td>
+            <td><strong>اسم الموظف المستلم:</strong> ${escapeHtml(employee?.fullName || voucher.employeeName)}</td>
+            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono font-bold">${escapeHtml(employee?.code || voucher.employeeId) || '—'}</span></td>
           </tr>
           <tr>
-            <td><strong>المسمى الوظيفي:</strong> ${voucher.jobTitle || employee?.jobTitle || '—'}</td>
-            <td><strong>الفرع / الإدارة:</strong> ${voucher.branchName || employee?.branchName || '—'}</td>
+            <td><strong>المسمى الوظيفي:</strong> ${escapeHtml(voucher.jobTitle || employee?.jobTitle) || '—'}</td>
+            <td><strong>الفرع / الإدارة:</strong> ${escapeHtml(voucher.branchName || employee?.branchName) || '—'}</td>
           </tr>
           <tr>
-            <td><strong>رقم الهوية:</strong> <span class="font-mono">${employee?.nationalId || '—'}</span></td>
+            <td><strong>رقم الهوية:</strong> <span class="font-mono">${escapeHtml(employee?.nationalId) || '—'}</span></td>
             <td><strong>تاريخ التسليم:</strong> ${formatDate(voucher.date)}</td>
           </tr>
         </table>
@@ -265,7 +266,7 @@ export function buildCustodyHandoverVoucherHtml(voucher, employee, settings) {
       <div class="voucher-declaration-box">
         <h4 class="declaration-title"><i class="fa-solid fa-shield-halved"></i> إقرار وتعهد الموظف المستلم</h4>
         <p class="declaration-text">
-          ${voucher.declaration || 'أقر أنا الموظف الموقع أدناه بأنني قد استلمت العهد والأجهزة والمعدات الموضحة في هذا المحضر بحالة فنية ممتازة وسليمة وكاملة الملحقات، وأتعهد بالمحافظة التامة عليها واستخدامها حصرياً في أغراض مهام العمل بالشركة، وإعادتها فور طلب الإدارة أو عند انتهاء خدمتي بحالتها المستلمة، وأتحمل كامل المسؤولية الإدارية والمالية عن أي فقدان أو تلف ناتج عن الإهمال أو سوء الاستخدام.'}
+          ${escapeHtml(voucher.declaration) || 'أقر أنا الموظف الموقع أدناه بأنني قد استلمت العهد والأجهزة والمعدات الموضحة في هذا المحضر بحالة فنية ممتازة وسليمة وكاملة الملحقات، وأتعهد بالمحافظة التامة عليها واستخدامها حصرياً في أغراض مهام العمل بالشركة، وإعادتها فور طلب الإدارة أو عند انتهاء خدمتي بحالتها المستلمة، وأتحمل كامل المسؤولية الإدارية والمالية عن أي فقدان أو تلف ناتج عن الإهمال أو سوء الاستخدام.'}
         </p>
       </div>
 
@@ -286,11 +287,11 @@ export function buildCustodyReturnVoucherHtml(voucher, employee, settings) {
   const itemsRows = (voucher.items || []).map((item, index) => `
     <tr>
       <td class="text-center">${index + 1}</td>
-      <td><strong>${item.name}</strong></td>
-      <td class="ltr-text font-mono">${item.serialNumber || '—'}</td>
-      <td><span class="badge ${item.returnCondition === 'متضرر' ? 'badge-rose' : 'badge-emerald'}">${item.returnCondition || 'سليم ومكتمل'}</span></td>
-      <td>${item.damages || 'لا توجد أضرار'}</td>
-      <td>${item.missingItems || 'لا توجد نواقص'}</td>
+      <td><strong>${escapeHtml(item.name)}</strong></td>
+      <td class="ltr-text font-mono">${escapeHtml(item.serialNumber) || '—'}</td>
+      <td><span class="badge ${item.returnCondition === 'متضرر' ? 'badge-rose' : 'badge-emerald'}">${escapeHtml(item.returnCondition) || 'سليم ومكتمل'}</span></td>
+      <td>${escapeHtml(item.damages) || 'لا توجد أضرار'}</td>
+      <td>${escapeHtml(item.missingItems) || 'لا توجد نواقص'}</td>
     </tr>
   `).join('');
 
@@ -301,12 +302,12 @@ export function buildCustodyReturnVoucherHtml(voucher, employee, settings) {
       <div class="voucher-info-box">
         <table class="voucher-meta-table">
           <tr>
-            <td><strong>اسم الموظف المرجع:</strong> ${employee?.fullName || voucher.employeeName}</td>
-            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono font-bold">${employee?.code || voucher.employeeId || '—'}</span></td>
+            <td><strong>اسم الموظف المرجع:</strong> ${escapeHtml(employee?.fullName || voucher.employeeName)}</td>
+            <td><strong>الرقم الوظيفي:</strong> <span class="font-mono font-bold">${escapeHtml(employee?.code || voucher.employeeId) || '—'}</span></td>
           </tr>
           <tr>
-            <td><strong>المسمى الوظيفي:</strong> ${voucher.jobTitle || employee?.jobTitle || '—'}</td>
-            <td><strong>الفرع:</strong> ${voucher.branchName || employee?.branchName || '—'}</td>
+            <td><strong>المسمى الوظيفي:</strong> ${escapeHtml(voucher.jobTitle || employee?.jobTitle) || '—'}</td>
+            <td><strong>الفرع:</strong> ${escapeHtml(voucher.branchName || employee?.branchName) || '—'}</td>
           </tr>
           <tr>
             <td><strong>تاريخ الإرجاع:</strong> ${formatDate(voucher.date)}</td>
@@ -361,9 +362,9 @@ export function buildVehicleInspectionDocumentHtml(vehicle, inspection, employee
     return `
       <tr>
         <td class="text-center">${i + 1}</td>
-        <td><strong>${key}</strong></td>
-        <td><span class="badge ${item.status === 'سليم' ? 'badge-emerald' : 'badge-amber'}">${item.status}</span></td>
-        <td>${item.note || '—'}</td>
+        <td><strong>${escapeHtml(key)}</strong></td>
+        <td><span class="badge ${item.status === 'سليم' ? 'badge-emerald' : 'badge-amber'}">${escapeHtml(item.status)}</span></td>
+        <td>${escapeHtml(item.note) || '—'}</td>
       </tr>
     `;
   }).join('');
@@ -377,23 +378,23 @@ export function buildVehicleInspectionDocumentHtml(vehicle, inspection, employee
         <table class="doc-data-table">
           <tbody>
             <tr>
-              <td><strong>الماركة والموديل:</strong> ${vehicle.brand} ${vehicle.model} (${vehicle.year})</td>
-              <td><strong>رقم اللوحة:</strong> <span class="badge-plate">${vehicle.plateNumber}</span></td>
+              <td><strong>الماركة والموديل:</strong> ${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)} (${escapeHtml(vehicle.year)})</td>
+              <td><strong>رقم اللوحة:</strong> <span class="badge-plate">${escapeHtml(vehicle.plateNumber)}</span></td>
             </tr>
             <tr>
-              <td><strong>رقم الشاصي:</strong> <span class="font-mono">${vehicle.chassisNumber}</span></td>
-              <td><strong>رقم المحرك:</strong> <span class="font-mono">${vehicle.engineNumber || '—'}</span></td>
+              <td><strong>رقم الشاصي:</strong> <span class="font-mono">${escapeHtml(vehicle.chassisNumber)}</span></td>
+              <td><strong>رقم المحرك:</strong> <span class="font-mono">${escapeHtml(vehicle.engineNumber) || '—'}</span></td>
             </tr>
             <tr>
-              <td><strong>اللون:</strong> ${vehicle.color}</td>
-              <td><strong>الفرع التابع له:</strong> ${vehicle.branchName}</td>
+              <td><strong>اللون:</strong> ${escapeHtml(vehicle.color)}</td>
+              <td><strong>الفرع التابع له:</strong> ${escapeHtml(vehicle.branchName)}</td>
             </tr>
             <tr>
               <td><strong>قراءة العداد الحالية:</strong> ${vehicle.odometer.toLocaleString()} كم</td>
-              <td><strong>مستوى الوقود:</strong> ${vehicle.fuelLevel}</td>
+              <td><strong>مستوى الوقود:</strong> ${escapeHtml(vehicle.fuelLevel)}</td>
             </tr>
             <tr>
-              <td><strong>الموظف المستلم:</strong> ${employee?.fullName || vehicle.assignedEmployeeName || '—'}</td>
+              <td><strong>الموظف المستلم:</strong> ${escapeHtml(employee?.fullName || vehicle.assignedEmployeeName) || '—'}</td>
               <td><strong>تاريخ التسليم:</strong> ${formatDate(vehicle.handoverDate || inspection.date)}</td>
             </tr>
           </tbody>
