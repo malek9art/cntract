@@ -43,8 +43,9 @@ cntract/
 ├── sw.js                       # الـ Service Worker للتخزين المؤقت Offline Cache
 ├── README.md                   # التوثيق الشامل ودليل التشغيل والنشر
 ├── env.js                      # قالب المتغيرات (يُعاد توليده آلياً من أسرار GitHub)
-├── .github/workflows/
-│   └── deploy-pages.yml        # بناء ونشر آلي مع حقن أسرار GitHub في env.js
+├── deploy/
+│   ├── static.yml              # محتوى workflow النشر مع حقن أسرار GitHub في env.js
+│   └── README.md               # دليل تفعيل النشر خطوة بخطوة
 ├── assets/
 │   ├── css/
 │   │   ├── auth.css            # شاشة تسجيل الدخول وحالة الاتصال السحابي
