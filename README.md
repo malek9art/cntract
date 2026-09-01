@@ -125,6 +125,18 @@ cntract/
 > ⚠️ يجب أن يكون العنوان بصيغة `https://` وبدون `/` في نهايته، وأن يكون المفتاح هو
 > مفتاح `anon public` وليس `service_role` (الأخير سري ولا يجوز نشره في المتصفح).
 
+### 0) تركيب ملف الـ workflow (مرة واحدة فقط)
+
+نسخة جاهزة موجودة في `deploy/github-pages-workflow.yml` — انقلها إلى مسار الـ workflows:
+
+```bash
+mkdir -p .github/workflows
+cp deploy/github-pages-workflow.yml .github/workflows/deploy-pages.yml
+git add .github/workflows/deploy-pages.yml && git commit -m "ci: deploy workflow" && git push
+```
+
+التفاصيل الكاملة في `deploy/README.md`.
+
 ### 2) تفعيل النشر عبر GitHub Actions ‼️
 
 هذه الخطوة **ضرورية** — إذا بقي النشر على الوضع القديم (Deploy from a branch) فلن يتم
